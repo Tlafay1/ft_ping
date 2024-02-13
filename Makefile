@@ -18,11 +18,11 @@ NAME := ft_ping
 
 all: $(NAME)
 
-$(LIB):
+libs:
 	$(MAKE) -C ./libft
 	$(MAKE) -C ./libargparse
 
-$(NAME): $(OBJS) $(LIB)
+$(NAME): libs $(OBJS)
 	$(CC) $(CFLAGS) \
 		$(OBJS) \
 		-o $(NAME) \
@@ -42,7 +42,7 @@ fclean: clean
 	$(RM) $(NAME)
 
 # Run tests with gtest
-test: $(LIB) $(OBJS)
+test: libs $(OBJS)
 	clang++ $(CFLAGS) \
 		$(OBJS) \
 		$(TESTS) \
