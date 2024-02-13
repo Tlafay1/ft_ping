@@ -4,7 +4,7 @@ CFLAGS=-Wall -Wextra -Werror
 
 RM := rm -f
 
-SRCS := ft_ping.c
+SRCS := ft_ping.c main.c
 
 TESTS := main.cpp help_tests.cpp
 
@@ -15,8 +15,6 @@ OBJS := $(addprefix obj/, ${SRCS:.c=.o})
 INCLUDE := include/ft_ping.h
 
 NAME := ft_ping
-
-LIB := lib/libargparse.a lib/libft.a
 
 all: $(NAME)
 
@@ -29,13 +27,13 @@ $(NAME): $(OBJS) $(LIB)
 		$(OBJS) \
 		-o $(NAME) \
 		-Llibft \
-		-Llibargparse \
+		-L libargparse/lib \
 		-lft \
 		-largparse \
 		-Wl,-R./libft
 
 obj/%.o : src/%.c $(INCLUDE)
-	$(CC) $(CFLAGS) $< -o $@ -c -I./include -I./libft -I./libargparse
+	$(CC) $(CFLAGS) $< -o $@ -c -I./include -I./libft -I./libargparse/include
 
 clean:
 	$(RM) $(OBJS)
@@ -44,8 +42,11 @@ fclean: clean
 	$(RM) $(NAME)
 
 # Run tests with gtest
-test: $(LIB)
-	@clang++ $(CFLAGS) \
+test: $(LIB) $(OBJS)
+	clang++ $(CFLAGS) \
+		$(OBJS) \
+		$(TESTS) \
+		-o tests/test \
 		-Llibft \
 		-Llibargparse \
 		-Wl,-R./libft \
@@ -53,13 +54,11 @@ test: $(LIB)
 		-I./libft \
 		-I./libargparse \
 		-pthread \
-		-o tests/test \
-		$(TESTS) \
 		-lgtest \
 		-largparse \
 		-lft
-	@./tests/test
-	@$(RM) tests/test
+	./tests/test
+	$(RM) tests/test
 
 re: fclean all
 

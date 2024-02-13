@@ -1,9 +1,9 @@
 #include "ft_ping.h"
 
 static t_argo options[] = {
-    {'v', "verbose", "verbose", "verbose output", NO_ARG},
+    {'v', NULL, "verbose", "verbose output", NO_ARG},
     // Currently bugged due to the lib
-    {'?', "help", "help", "print help and exit", NO_ARG},
+    {'?', NULL, "help", "print help and exit", NO_ARG},
     {0}
 };
 
@@ -13,7 +13,7 @@ static t_argp argp = {
     .doc = ""
 };
 
-int ping(int argc, const char **argv)
+int ft_ping(int argc, const char **argv)
 {
     t_list *head = parse_args(&argp, argc, argv);
 	t_argr *argr;
@@ -37,13 +37,11 @@ int ping(int argc, const char **argv)
 
     while ((argr = get_next_arg(head)))
 	{
-		// Be careful, the option can be NULL.
 		if (argr->option)
 		{
 			printf("sflag: %c, lflag: %s, name: %s\n", argr->option->sflag,
 				   argr->option->lflag, argr->option->name);
 		}
-		// Be careful, the values can be NULL.
 		if (argr->values)
 			for (int i = 0; argr->values[i]; i++)
 				printf("%s\n", argr->values[i]);
@@ -51,9 +49,4 @@ int ping(int argc, const char **argv)
 
     free_args(head);
     return 0;
-}
-
-int main(int argc, const char **argv)
-{
-    return ping(argc, argv);
 }
