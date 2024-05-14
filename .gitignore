@@ -1,2 +1,6 @@
-*.obj
+*.o
 ft_ping
+libargparse*
+.vscode
+.gdb_history
+peda-*

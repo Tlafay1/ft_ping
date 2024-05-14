@@ -4,16 +4,14 @@ static t_argo options[] = {
     {'v', NULL, "verbose", "verbose output", NO_ARG},
     // Currently bugged due to the lib
     {'?', NULL, "help", "print help and exit", NO_ARG},
-    {0}
-};
+    {0}};
 
 static t_argp argp = {
     .options = options,
     .args_doc = "[options] <destination>",
-    .doc = ""
-};
+    .doc = ""};
 
-char    *dns_lookup(const char *host)
+char *dns_lookup(const char *host)
 {
     struct addrinfo hints;
     struct addrinfo *res;
@@ -32,7 +30,7 @@ char    *dns_lookup(const char *host)
     return ip;
 }
 
-char   *reverse_dns_lookup(const char *ip)
+char *reverse_dns_lookup(const char *ip)
 {
     struct sockaddr_in sa;
     char host[1024];
@@ -40,49 +38,50 @@ char   *reverse_dns_lookup(const char *ip)
 
     sa.sin_family = AF_INET;
     sa.sin_addr.s_addr = inet_addr(ip);
-    getnameinfo((struct sockaddr*)&sa, sizeof(sa), host, 1024, service, 20, 0);
+    getnameinfo((struct sockaddr *)&sa, sizeof(sa), host, 1024, service, 20, 0);
     return ft_strdup(host);
 }
 
-int ft_ping(int argc, const char **argv)
+int ft_ping(__attribute__((unused)) int argc, const char **argv)
 {
-	t_argr      *argr;
+    t_argr *argr;
     t_ping_args args;
+    t_list *args_list;
+    t_list *options_list;
 
-    t_list *head = parse_args(&argp, argc, argv);
-    
-    if (head == NULL)
+    if (parse_args(&argp, argv, &args_list, &options_list))
         return 1;
 
     args.verbose = 0;
 
-    while ((argr = get_next_option(head)))
-	{
-		if (argr->option && argr->option->sflag == '?')
-        {
-            help_args(&argp, argv[0]);
-            free_args(head);
-            return 1;
-        }
-        if (argr->option && argr->option->sflag == 'v')
-            args.verbose = 1;
-	}
+    // while ((argr = get_next_option(&options_list)))
+    // {
+    //     if (argr->option && argr->option->sflag == '?')
+    //     {
+    //         help_args(&argp, argv[0]);
+    //         free_args(args_list);
+    //         free_args(options_list);
+    //         return 1;
+    //     }
+    //     if (argr->option && argr->option->sflag == 'v')
+    //         args.verbose = 1;
+    // }
 
-    argr = get_next_arg(head);
+    argr = get_next_arg(&args_list);
 
     if (!argr)
     {
         printf("%s: destination argument required\n", argv[0]);
-        free_args(head);
+        // free_args(args_list);
+        // free_args(options_list);
         return 1;
     }
 
-    args.host = argr->values[0];
-    args.ip = dns_lookup(args.host);
-    args.reverse_dns = reverse_dns_lookup(args.ip);
-    printf("PING %s (%s) 56(84) bytes of data.\n", args.host, args.ip);
-    printf("64 bytes from %s: icmp_seq=1 ttl=64 time=0.000 ms\n", args.reverse_dns);
+    // args.host = argr->values[0];
+    // args.ip = dns_lookup(args.host);
+    // args.reverse_dns = reverse_dns_lookup(args.ip);
+    // printf("PING %s (%s) 56(84) bytes of data.\n", args.host, args.ip);
+    // printf("64 bytes from %s: icmp_seq=1 ttl=64 time=0.000 ms\n", args.reverse_dns);
 
-    free_args(head);
     return 0;
 }
