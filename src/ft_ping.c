@@ -45,43 +45,40 @@ char *reverse_dns_lookup(const char *ip)
 int ft_ping(__attribute__((unused)) int argc, const char **argv)
 {
     t_argr *argr;
-    t_ping_args args;
-    t_list *args_list;
-    t_list *options_list;
+    t_ping_args ping_args;
+    t_args *args;
 
-    if (parse_args(&argp, argv, &args_list, &options_list))
+    if (parse_args(&argp, argv, &args))
         return 1;
 
-    args.verbose = 0;
+    ping_args.verbose = 0;
 
-    // while ((argr = get_next_option(&options_list)))
-    // {
-    //     if (argr->option && argr->option->sflag == '?')
-    //     {
-    //         help_args(&argp, argv[0]);
-    //         free_args(args_list);
-    //         free_args(options_list);
-    //         return 1;
-    //     }
-    //     if (argr->option && argr->option->sflag == 'v')
-    //         args.verbose = 1;
-    // }
+    while ((argr = get_next_option(args)))
+    {
+        if (argr->option && argr->option->sflag == '?')
+        {
+            help_args(&argp, argv[0]);
+            free_args(args);
+            return 1;
+        }
+        if (argr->option && argr->option->sflag == 'v')
+            ping_args.verbose = 1;
+    }
 
-    argr = get_next_arg(&args_list);
+    argr = get_next_arg(args);
 
     if (!argr)
     {
         printf("%s: destination argument required\n", argv[0]);
-        // free_args(args_list);
-        // free_args(options_list);
+        free_args(args);
         return 1;
     }
 
-    // args.host = argr->values[0];
-    // args.ip = dns_lookup(args.host);
-    // args.reverse_dns = reverse_dns_lookup(args.ip);
-    // printf("PING %s (%s) 56(84) bytes of data.\n", args.host, args.ip);
-    // printf("64 bytes from %s: icmp_seq=1 ttl=64 time=0.000 ms\n", args.reverse_dns);
+    ping_args.host = argr->values[0];
+    ping_args.ip = dns_lookup(ping_args.host);
+    ping_args.reverse_dns = reverse_dns_lookup(ping_args.ip);
+    printf("PING %s (%s) 56(84) bytes of data.\n", ping_args.host, ping_args.ip);
+    printf("64 bytes from %s: icmp_seq=1 ttl=64 time=0.000 ms\n", ping_args.reverse_dns);
 
     return 0;
 }

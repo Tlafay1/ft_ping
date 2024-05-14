@@ -16,7 +16,7 @@ INCLUDE := include/ft_ping.h
 
 NAME := ft_ping
 
-LIBARGPARSE_VERSION = 2.0.0
+LIBARGPARSE_VERSION = 3.0.1
 
 LIBARGPARSE_URL = https://github.com/Tlafay1/libargparse/releases/download/v$(LIBARGPARSE_VERSION)/libargparse-$(LIBARGPARSE_VERSION).tar.gz
 
@@ -65,7 +65,7 @@ fclean : clean
 	$(RM) $(NAME)
 
 distclean: fclean
-	$(RM) -r $(LIBARGPARSE_NAME)
+	$(RM) -rf $(LIBARGPARSE_NAME)
 	$(RM) config.log config.status
 
 test: tests/test
