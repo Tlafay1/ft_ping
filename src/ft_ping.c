@@ -22,7 +22,7 @@ unsigned short icmp_cksum(unsigned char *addr, int len)
     return answer;
 }
 
-PING *ping_init(const char *progname, t_argr *argr)
+PING *ping_init(const char *progname, t_argr *argr, t_ping_options *ping_options)
 {
     int fd;
     struct protoent *proto;
@@ -65,24 +65,15 @@ PING *ping_init(const char *progname, t_argr *argr)
 
     memset(ping, 0, sizeof(*ping));
 
+    ping->options = ping_options;
+
     ping->fd = fd;
     ping->count = 0;
     ping->interval = 1;
-    ping->datalen = PING_DEFAULT_PKT_S - sizeof(struct icmphdr);
+    ping->datalen = ping->options->size - sizeof(struct icmphdr);
     ping->ident = getpid() & 0xFFFF;
     ping->hostname = argr->values[0];
     gettimeofday(&ping->start_time, NULL);
-
-    struct sockaddr_in myaddr;
-    int s;
-
-    myaddr.sin_family = AF_INET;
-    myaddr.sin_port = htons(3490);
-
-    inet_aton(dns_lookup(ping->hostname), &myaddr.sin_addr.s_addr);
-
-    s = socket(PF_INET, SOCK_STREAM, 0);
-    bind(s, (struct sockaddr *)myaddr, sizeof(myaddr));
 
     return ping;
 }
@@ -102,6 +93,8 @@ int set_dest(PING *ping, const char *host)
 
     ipv4 = (struct sockaddr_in *)res->ai_addr;
     ping->dest = *ipv4;
+
+    ping->hostname = strdup(host);
 
     freeaddrinfo(res);
 
@@ -202,6 +195,7 @@ int ft_ping(const char *argv[])
 
     ping_options.verbose = false;
     ping_options.count = -1;
+    ping_options.size = PING_DEFAULT_PKT_S;
 
     while ((argr = get_next_option(args)))
     {
@@ -221,6 +215,14 @@ int ft_ping(const char *argv[])
                 return 1;
             }
         }
+        if (argr->option && argr->option->sflag == 's')
+        {
+            if (parse_size_arg(&ping_options, argr, argv[0]))
+            {
+                free_args(args);
+                return 1;
+            }
+        }
     }
 
     argr = get_next_arg(args);
@@ -232,9 +234,7 @@ int ft_ping(const char *argv[])
         return 1;
     }
 
-    ping = ping_init(argv[0], argr);
-
-    ping->options = &ping_options;
+    ping = ping_init(argv[0], argr, &ping_options);
 
     for (; ping->count < ping->options->count || ping->options->count == -1; ping->count++)
     {

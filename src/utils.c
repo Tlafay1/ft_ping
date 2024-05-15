@@ -75,3 +75,21 @@ int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *prognam
     }
     return 0;
 }
+
+int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname)
+{
+    char *p;
+    ping_args->size = strtol(argr->values[0], &p, 10);
+    if (*p)
+    {
+        printf("%s: invalid size: '%s'\n", progname, argr->values[0]);
+        return 1;
+    }
+    if (ping_args->size < 1 || ping_args->size > 65535)
+    {
+        printf("%s: invalid argument: '%s': out of range: 1 <= value <= 65535\n",
+               progname, argr->values[0]);
+        return 1;
+    }
+    return 0;
+}

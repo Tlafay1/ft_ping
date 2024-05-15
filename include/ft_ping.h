@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include <string.h>
 
 #include <sys/time.h>
 
@@ -22,6 +23,7 @@ static t_argo options[] = {
     {'v', "verbose", "verbose", "verbose output", NO_ARG},
     {'c', "count", "count", "stop after <count> replies", ONE_ARG},
     {'t', "ttl", "time to live", "define time to live", ONE_ARG},
+    {'s', "size", "data size", "use <size> as number of data bytes to be sent", ONE_ARG},
     {'?', "help", "help", "print help and exit", NO_ARG},
     {0}};
 
@@ -52,6 +54,7 @@ typedef struct s_ping_options
 {
     bool verbose;
     long count;
+    long size;
 } t_ping_options;
 
 typedef struct ping_data PING;
@@ -81,5 +84,6 @@ int ft_ping(const char *argv[]);
 char *dns_lookup(const char *host);
 char *reverse_dns_lookup(const char *ip);
 int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
+int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 
 #endif
