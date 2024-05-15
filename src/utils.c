@@ -52,7 +52,7 @@ char *reverse_dns_lookup(const char *ip)
  * @param progname - The name of the program.
  * @return 0 if the count argument is successfully parsed and stored, other otherwise.
  */
-int parse_count_arg(t_ping_args *ping_args, t_argr *argr, const char *progname)
+int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *progname)
 {
     char *p;
     ping_args->count = strtol(argr->values[0], &p, 10);

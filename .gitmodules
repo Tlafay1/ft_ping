@@ -1,6 +1,3 @@
-[submodule "libargparse"]
-	path = libargparse
-	url = git@github.com:Tlafay1/libargparse.git
 [submodule "libft"]
 	path = libft
-	url = git@github.com:Tlafay1/libft.git
+	url = https://github.com/Tlafay1/libft.git

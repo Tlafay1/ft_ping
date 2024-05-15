@@ -1,6 +1,6 @@
 CC=clang
 
-CFLAGS=-Wall -Wextra -Werror -g
+CFLAGS= -g
 
 RM := rm -f
 
