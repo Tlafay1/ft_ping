@@ -1,6 +1,6 @@
 #include "ft_ping.h"
 
-int main(int argc, const char **argv)
+int main(__attribute__((unused)) int argc, const char *argv[])
 {
-    return ft_ping(argc, argv);
+    return ft_ping(argv);
 }

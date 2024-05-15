@@ -4,9 +4,9 @@ CFLAGS=-Wall -Wextra -Werror -g
 
 RM := rm -f
 
-SRCS := ft_ping.c main.c
+SRCS := ft_ping.c main.c utils.c
 
-TESTS := main.cpp help_tests.cpp
+TESTS := main.cpp tests_utils.cpp
 
 TESTS := $(addprefix tests/, $(TESTS))
 

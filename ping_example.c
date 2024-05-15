@@ -1,317 +1,231 @@
-// C program to Implement Ping
- 
-// compile as -o ping
-// run as sudo ./ping <hostname>
- 
-#include stdio.h;
-#include sys/types.h;
-#include sys/socket.h;
-#include netinet/in.h;
-#include arpa/inet.h;
-#include netdb.h;
-#include unistd.h;
-#include string.h;
-#include stdlib.h;
-#include netinet/ip_icmp.h;
-#include time.h;
-#include fcntl.h;
-#include signal.h;
-#include time.h;
- 
-// Define the Packet Constants
-// ping packet size
-#define PING_PKT_S 64
- 
-// Automatic port number
-#define PORT_NO 0
- 
-// Automatic port number
-#define PING_SLEEP_RATE 1000000 x
- 
-// Gives the timeout delay for receiving packets
-// in seconds
-#define RECV_TIMEOUT 1
- 
-// Define the Ping Loop
-int pingloop = 1;
- 
-// ping packet structure
-struct ping_pkt {
-    struct icmphdr hdr;
-    char msg[PING_PKT_S - sizeof(struct icmphdr)];
-};
- 
-// Calculating the Check Sum
-unsigned short checksum(void* b, int len)
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/select.h>
+#include <sys/time.h>
+
+unsigned short cksum(unsigned short *addr, int len);
+
+int main(int argc, char *argv[])
 {
-    unsigned short* buf = b;
-    unsigned int sum = 0;
-    unsigned short result;
- 
-    for (sum = 0; len & gt; 1; len -= 2)
-        sum += *buf++;
-    if (len == 1)
-        sum += *(unsigned char*)buf;
-    sum = (sum & gt; > 16) + (sum & amp; 0xFFFF);
-    sum += (sum & gt; > 16);
-    result = ~sum;
-    return result;
-}
- 
-// Interrupt handler
-void intHandler(int dummy) { pingloop = 0; }
- 
-// Performs a DNS lookup
-char* dns_lookup(char* addr_host,
-                 struct sockaddr_in* addr_con)
-{
-    printf("\nResolving DNS..\n & quot;);
-    struct hostent* host_entity;
-    char* ip = (char*)malloc(NI_MAXHOST * sizeof(char));
-    int i;
- 
-    if ((host_entity = gethostbyname(addr_host)) == NULL) {
-        // No ip found for hostname
-        return NULL;
+    int sock;
+    char send_buf[400], recv_buf[400], src_name[256], src_ip[15], dst_ip[15];
+    struct ip *ip = (struct ip *)send_buf;
+    struct icmp *icmp = (struct icmp *)(ip + 1);
+    struct hostent *src_hp, *dst_hp;
+    struct sockaddr_in src, dst;
+    struct timeval t;
+    int on;
+    int num = 10;
+    int failed_count = 0;
+    int bytes_sent, bytes_recv;
+    int dst_addr_len;
+    int result;
+    fd_set socks;
+
+    /* Initialize variables */
+    on = 1;
+    memset(send_buf, 0, sizeof(send_buf));
+
+    /* Check for valid args */
+    if (argc < 2)
+    {
+        printf("\nUsage: %s <dst_server>\n", argv[0]);
+        printf("- dst_server is the target\n");
+        exit(EXIT_FAILURE);
     }
- 
-    // filling up address structure
-    strcpy(ip,
-           inet_ntoa(*(struct in_addr*)host_entity - >
-                     h_addr));
- 
-    (*addr_con).sin_family = host_entity - >
-    h_addrtype;
-    (*addr_con).sin_port = htons(PORT_NO);
-    (*addr_con).sin_addr.s_addr = *(long*)host_entity - >
-    h_addr;
- 
-    return ip;
-}
- 
-// Resolves the reverse lookup of the hostname
-char* reverse_dns_lookup(char* ip_addr)
-{
-    struct sockaddr_in temp_addr;
-    socklen_t len;
-    char buf[NI_MAXHOST], *ret_buf;
- 
-    temp_addr.sin_family = AF_INET;
-    temp_addr.sin_addr.s_addr = inet_addr(ip_addr);
-    len = sizeof(struct sockaddr_in);
- 
-    if (getnameinfo((struct sockaddr*)&
-                    temp_addr, len, buf, sizeof(buf), NULL,
-                    0, NI_NAMEREQD)) {
-        printf(
-            "
-            Could not resolve reverse lookup of hostname\n
-            & quot;);
-        return NULL;
+
+    /* Check for root access */
+    if (getuid() != 0)
+    {
+        fprintf(stderr, "%s: This program requires root privileges!\n", argv[0]);
+        exit(EXIT_FAILURE);
     }
-    ret_buf
-        = (char*)malloc((strlen(buf) + 1) * sizeof(char));
-    strcpy(ret_buf, buf);
-    return ret_buf;
-}
- 
-// make a ping request
-void send_ping(int ping_sockfd,
-               struct sockaddr_in* ping_addr,
-               char* ping_dom, char* ping_ip,
-               char* rev_host)
-{
-    int ttl_val = 64, msg_count = 0, i, addr_len, flag = 1,
-        msg_received_count = 0;
- 
-    // receive buffer
-    // ip header is included when receiving
-    // from raw socket
-    char rbuffer[128];
-    struct ping_pkt* r_pckt;
- 
-    struct ping_pkt pckt;
-    struct sockaddr_in r_addr;
-    struct timespec time_start, time_end, tfs, tfe;
-    long double rtt_msec = 0, total_msec = 0;
-    struct timeval tv_out;
-    tv_out.tv_sec = RECV_TIMEOUT;
-    tv_out.tv_usec = 0;
- 
-    clock_gettime(CLOCK_MONOTONIC, & tfs);
- 
-    // set socket options at ip to TTL and value to 64,
-    // change to what you want by setting ttl_val
-    if (setsockopt(ping_sockfd, SOL_IP, IP_TTL, &
-                   ttl_val, sizeof(ttl_val))
-        != 0) {
-        printf(
-            "\nSetting socket options to TTL failed !\n
-                  & quot;);
-        return;
-    }
- 
-    else {
-        printf("\nSocket set to TTL..\n & quot;);
-    }
- 
-    // setting timeout of recv setting
-    setsockopt(ping_sockfd, SOL_SOCKET, SO_RCVTIMEO,
-               (const char*)&
-               tv_out, sizeof tv_out);
- 
-    // send icmp packet in an infinite loop
-    while (pingloop) {
-        // flag is whether packet was sent or not
-        flag = 1;
- 
-        // filling packet
-        bzero(& pckt, sizeof(pckt));
- 
-        pckt.hdr.type = ICMP_ECHO;
-        pckt.hdr.un.echo.id = getpid();
- 
-        for (i = 0; i & lt; sizeof(pckt.msg) - 1; i++)
-            pckt.msg[i] = i + '0';
- 
-        pckt.msg[i] = 0;
-        pckt.hdr.un.echo.sequence = msg_count++;
-        pckt.hdr.checksum
-            = checksum(& pckt, sizeof(pckt));
- 
-        usleep(PING_SLEEP_RATE);
- 
-        // send packet
-        clock_gettime(CLOCK_MONOTONIC, & time_start);
-        if (sendto(ping_sockfd, &
-                   pckt, sizeof(pckt), 0,
-                   (struct sockaddr*)ping_addr,
-                   sizeof(*ping_addr))& lt;
-            = 0) {
-            printf("\nPacket Sending Failed !\n
-                         & quot;);
-            flag = 0;
-        }
- 
-        // receive packet
-        addr_len = sizeof(r_addr);
- 
-        if (recvfrom(ping_sockfd,
-                     rbuffer, sizeof(rbuffer), 0,
-                     (struct sockaddr*)&
-                     r_addr, & addr_len)& lt;
-            = 0 & amp; & msg_count & gt; 1) {
-            printf("\nPacket receive failed !\n
-                         & quot;);
-        }
- 
-        else {
-            clock_gettime(CLOCK_MONOTONIC, & time_end);
- 
-            double timeElapsed
-                = ((double)(time_end.tv_nsec
-                            - time_start.tv_nsec))
-                  / 1000000.0 rtt_msec
-                = (time_end.tv_sec - time_start.tv_sec)
-                      * 1000.0
-                  + timeElapsed;
- 
-            // if packet was not sent, don't receive
-            if (flag) {
-                if (!(r_pckt->hdr.type == 0 & amp; &
-                      r_pckt->hdr.code == 0)) {
-                    printf(" Error..Packet received
-                                          with ICMP type
-                                      % d code % d\n
-                                  & quot;
-                           , r_pckt->hdr.type, r_pckt->hdr.code);
-                }
-                else {
-                    printf(" % d bytes from
-                                      % s(h
-                                          :
-                                          % s)(% s) msg_seq
-                                  = % d ttl = % d rtt =
-                                      % Lf ms.\n & quot;
-                           , PING_PKT_S, ping_dom, rev_host,
-                           ping_ip, msg_count, ttl_val,
-                           rtt_msec);
- 
-                    msg_received_count++;
-                }
-            }
-        }
-    }
-    clock_gettime(CLOCK_MONOTONIC, & tfe);
-    double timeElapsed
-        = ((double)(tfe.tv_nsec - tfs.tv_nsec)) / 1000000.0;
- 
-    total_msec = (tfe.tv_sec - tfs.tv_sec) * 1000.0
-                 + timeElapsed
- 
-                 printf("\n == = % s ping statistics ==
-                              =\n & quot;
-                        , ping_ip);
-    printf("\n % d packets sent, % d packets received,
-                 % f percent packet loss.Total time
-           :
-           % Lf ms.\n\n & quot;
-           , msg_count, msg_received_count,
-           ((msg_count - msg_received_count) / msg_count)
-               * 100.0,
-           total_msec);
-}
- 
-// Driver Code
-int main(int argc, char* argv[])
-{
-    int sockfd;
-    char *ip_addr, *reverse_hostname;
-    struct sockaddr_in addr_con;
-    int addrlen = sizeof(addr_con);
-    char net_buf[NI_MAXHOST];
- 
-    if (argc != 2) {
-        printf("\nFormat % s & lt;
-               address & gt;\n & quot;, argv[0]);
-        return 0;
-    }
- 
-    ip_addr = dns_lookup(argv[1], & addr_con);
-    if (ip_addr == NULL) {
-        printf(
-            "\nDNS lookup
-                      failed !Could not resolve hostname !\n
-                  & quot;);
-        return 0;
-    }
- 
-    reverse_hostname = reverse_dns_lookup(ip_addr);
-    printf("\nTrying to connect to '%s' IP
-           :
-           % s\n & quot;, argv[1], ip_addr);
-    printf("\nReverse Lookup domain
-           :
-           % s & quot;, reverse_hostname);
- 
-    // socket()
-    sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-    if (sockfd & lt; 0) {
-        printf(
-            "\nSocket file descriptor not received !!\n
-                  & quot;);
-        return 0;
+
+    /* Get source IP address */
+    if (gethostname(src_name, sizeof(src_name)) < 0)
+    {
+        perror("gethostname() error");
+        exit(EXIT_FAILURE);
     }
     else
-        printf("\nSocket file descriptor % d received\n
-                     & quot;
-               , sockfd);
- 
-    signal(SIGINT, intHandler); // catching interrupt
- 
-    // send pings continuously
-    send_ping(sockfd, &
-              addr_con, reverse_hostname, ip_addr, argv[1]);
- 
+    {
+        if ((src_hp = gethostbyname(src_name)) == NULL)
+        {
+            fprintf(stderr, "%s: Can't resolve, unknown source.\n", src_name);
+            exit(EXIT_FAILURE);
+        }
+        else
+            ip->ip_src = (*(struct in_addr *)src_hp->h_addr);
+    }
+
+    /* Get destination IP address */
+    if ((dst_hp = gethostbyname(argv[1])) == NULL)
+    {
+        if ((ip->ip_dst.s_addr = inet_addr(argv[1])) == -1)
+        {
+            fprintf(stderr, "%s: Can't resolve, unknown destination.\n", argv[1]);
+            exit(EXIT_FAILURE);
+        }
+    }
+    else
+    {
+        ip->ip_dst = (*(struct in_addr *)dst_hp->h_addr);
+        dst.sin_addr = (*(struct in_addr *)dst_hp->h_addr);
+    }
+
+    sprintf(src_ip, "%s", inet_ntoa(ip->ip_src));
+    sprintf(dst_ip, "%s", inet_ntoa(ip->ip_dst));
+    printf("Source IP: '%s' -- Destination IP: '%s'\n", src_ip, dst_ip);
+
+    /* Create RAW socket */
+    if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
+    {
+        perror("socket() error");
+
+        /* If something wrong, just exit */
+        exit(EXIT_FAILURE);
+    }
+
+    /* Socket options, tell the kernel we provide the IP structure */
+    if (setsockopt(sock, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0)
+    {
+        perror("setsockopt() for IP_HDRINCL error");
+        exit(EXIT_FAILURE);
+    }
+
+    /* IP structure, check the ip.h */
+    ip->ip_v = 4;
+    ip->ip_hl = 5;
+    ip->ip_tos = 0;
+    ip->ip_len = htons(sizeof(send_buf));
+    ip->ip_id = htons(321);
+    ip->ip_off = htons(0);
+    ip->ip_ttl = 255;
+    ip->ip_p = IPPROTO_ICMP;
+    ip->ip_sum = 0;
+
+    /* ICMP structure, check ip_icmp.h */
+    icmp->icmp_type = ICMP_ECHO;
+    icmp->icmp_code = 0;
+    icmp->icmp_id = 123;
+    icmp->icmp_seq = 0;
+
+    /* Set up destination address family */
+    dst.sin_family = AF_INET;
+
+    /* Loop based on the packet number */
+    for (int i = 1; i <= num; i++)
+    {
+        /* Header checksums */
+        icmp->icmp_cksum = 0;
+        ip->ip_sum = cksum((unsigned short *)send_buf, ip->ip_hl);
+        icmp->icmp_cksum = cksum((unsigned short *)icmp,
+                                 sizeof(send_buf) - sizeof(struct icmp));
+
+        /* Get destination address length */
+        dst_addr_len = sizeof(dst);
+
+        /* Set listening timeout */
+        t.tv_sec = 5;
+        t.tv_usec = 0;
+
+        /* Set socket listening descriptors */
+        FD_ZERO(&socks);
+        FD_SET(sock, &socks);
+
+        /* Send packet */
+        if ((bytes_sent = sendto(sock, send_buf, sizeof(send_buf), 0,
+                                 (struct sockaddr *)&dst, dst_addr_len)) < 0)
+        {
+            perror("sendto() error");
+            failed_count++;
+            printf("Failed to send packet.\n");
+            fflush(stdout);
+        }
+        else
+        {
+            printf("Sent %d byte packet... ", bytes_sent);
+
+            fflush(stdout);
+
+            /* Listen for the response or timeout */
+            if ((result = select(sock + 1, &socks, NULL, NULL, &t)) < 0)
+            {
+                perror("select() error");
+                failed_count++;
+                printf("Error receiving packet!\n");
+            }
+            else if (result > 0)
+            {
+                printf("Waiting for packet... ");
+                fflush(stdout);
+
+                if ((bytes_recv = recvfrom(sock, recv_buf,
+                                           sizeof(ip) + sizeof(icmp) + sizeof(recv_buf), 0,
+                                           (struct sockaddr *)&dst,
+                                           (socklen_t *)&dst_addr_len)) < 0)
+                {
+                    perror("recvfrom() error");
+                    failed_count++;
+                    fflush(stdout);
+                }
+                else
+                    printf("Received %d byte packet!\n", bytes_recv);
+            }
+            else
+            {
+                printf("Failed to receive packet!\n");
+                failed_count++;
+            }
+
+            fflush(stdout);
+
+            icmp->icmp_seq++;
+        }
+    }
+
+    /* Display success rate */
+    printf("Ping test completed with %d%% success rate.\n",
+           (((num - failed_count) / num) * 100));
+
+    /* close socket */
+    close(sock);
+
     return 0;
+}
+
+/* One's Complement checksum algorithm */
+unsigned short cksum(unsigned short *addr, int len)
+{
+    int nleft = len;
+    int sum = 0;
+    unsigned short *w = addr;
+    unsigned short answer = 0;
+
+    while (nleft > 1)
+    {
+        sum += *w++;
+        nleft -= 2;
+    }
+
+    if (nleft == 1)
+    {
+        *(unsigned char *)(&answer) = *(unsigned char *)w;
+        sum += answer;
+    }
+
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += (sum >> 16);
+    answer = ~sum;
+
+    return (answer);
 }
