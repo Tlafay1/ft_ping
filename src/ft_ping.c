@@ -78,6 +78,8 @@ PING *ping_init(const char *progname, t_argr *argr, t_ping_options *ping_options
     return ping;
 }
 
+#include <string.h>
+
 int set_dest(PING *ping, const char *host)
 {
     struct addrinfo hints;
