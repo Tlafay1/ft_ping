@@ -69,8 +69,8 @@ int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *prognam
     }
     if (ping_args->count < 1)
     {
-        printf("%s: invalid argument: '%s': out of range: 1 <= value <= 9223372036854775807\n",
-               progname, argr->values[0]);
+        printf("%s: invalid argument: '%s': out of range: 1 <= value <= %lld\n",
+               progname, argr->values[0], LLONG_MAX);
         return 1;
     }
     return 0;
@@ -85,9 +85,27 @@ int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname
         printf("%s: invalid size: '%s'\n", progname, argr->values[0]);
         return 1;
     }
-    if (ping_args->size < 1 || ping_args->size > 65535)
+    if (ping_args->size < 1 || ping_args->size > IP_MAXPACKET)
     {
-        printf("%s: invalid argument: '%s': out of range: 1 <= value <= 65535\n",
+        printf("%s: invalid argument: '%s': out of range: 1 <= value <= %d\n",
+               progname, argr->values[0], IP_MAXPACKET);
+        return 1;
+    }
+    return 0;
+}
+
+int parse_interval_arg(t_ping_options *ping_args, t_argr *argr, const char *progname)
+{
+    char *p;
+    ping_args->interval = strtof(argr->values[0], &p) * 1000000;
+    if (*p)
+    {
+        printf("%s: invalid interval: '%s'\n", progname, argr->values[0]);
+        return 1;
+    }
+    if (ping_args->interval < 0.2)
+    {
+        printf("%s: invalid argument: '%s': out of range: 0 <= value <= 9223372036854775807\n",
                progname, argr->values[0]);
         return 1;
     }

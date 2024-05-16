@@ -85,7 +85,8 @@ tests/test: libs $(OBJS)
 		-pthread \
 		-lgtest \
 		-largparse \
-		-lft
+		-lft \
+		-no-pie
 	./tests/test
 	$(RM) tests/test
 

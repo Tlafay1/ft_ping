@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <string.h>
+#include <unistd.h>
+#include <limits.h>
 
 #include <sys/time.h>
 
@@ -20,10 +22,11 @@
 #include "argparse.h"
 
 static t_argo options[] = {
-    {'v', "verbose", "verbose", "verbose output", NO_ARG},
     {'c', "count", "count", "stop after <count> replies", ONE_ARG},
-    {'t', "ttl", "time to live", "define time to live", ONE_ARG},
+    {'i', "interval", "interval", "wait NUMBER seconds between sending each packet", ONE_ARG},
     {'s', "size", "data size", "use <size> as number of data bytes to be sent", ONE_ARG},
+    {'t', "ttl", "time to live", "define time to live", ONE_ARG},
+    {'v', "verbose", "verbose", "verbose output", NO_ARG},
     {'?', "help", "help", "print help and exit", NO_ARG},
     {0}};
 
@@ -35,12 +38,12 @@ static t_argp argp = {
 /**
  * @brief The size of the ping packet in bytes.
  */
-#define PING_DEFAULT_PKT_S 64
+#define PING_DEFAULT_PKT_S 64 - sizeof(struct icmphdr)
 
 /**
  * @brief The rate at which the ping loop sleeps in microseconds.
  */
-#define PING_DEFAULT_SLEEP_RATE 1000000
+#define PING_DEFAULT_INTERVAL 1000000
 
 /**
  * @brief The timeout delay for receiving packets in seconds.
@@ -55,6 +58,7 @@ typedef struct s_ping_options
     bool verbose;
     long count;
     long size;
+    float interval;
 } t_ping_options;
 
 typedef struct ping_data PING;
@@ -85,5 +89,6 @@ char *dns_lookup(const char *host);
 char *reverse_dns_lookup(const char *ip);
 int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
+int parse_interval_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 
 #endif
