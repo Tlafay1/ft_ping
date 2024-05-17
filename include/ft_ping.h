@@ -36,6 +36,9 @@ static t_argp argp = {
     .args_doc = "[options] <destination>",
     .doc = ""};
 
+#define MAXIPLEN 60
+#define MAXICMPLEN 76
+
 /**
  * @brief The size of the ping packet in bytes.
  */
@@ -52,13 +55,23 @@ static t_argp argp = {
 #define PING_DEFAULT_RECV_TIMEOUT 1
 
 /**
+ * @brief The maximum size of the packet data in bytes.
+ */
+#define PING_MAX_DATALEN IP_MAXPACKET - MAXIPLEN - MAXICMPLEN
+
+/**
+ * @brief The default number of packets to send, 0 means infinite.
+ */
+#define PING_DEFAULT_COUNT 0
+
+/**
  * @brief The options for the ping program.
  */
 typedef struct s_ping_options
 {
     bool verbose;
-    long count;
-    long size;
+    size_t count;
+    uint16_t size;
     float interval;
 } t_ping_options;
 
@@ -70,13 +83,14 @@ typedef struct ping_data PING;
 struct ping_data
 {
     int fd;                       /* Socket file descriptor */
+    uint16_t ident;               /* Process ID */
     size_t count;                 /* Number of packets to send */
     struct timeval start_time;    /* Time when the ping loop starts */
     size_t interval;              /* Interval between packets */
     struct sockaddr_in dest;      /* Destination address */
+    struct sockaddr_in from;      /* Source address */
     char *hostname;               /* Hostname */
     size_t datalen;               /* Data byte count */
-    int ident;                    /* Process ID */
     struct icmphdr hdr;           /* ICMP header */
     unsigned char *packet_buffer; /* Packet buffer */
     size_t num_emit;              /* Number of packets transmitted */

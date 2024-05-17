@@ -1,5 +1,12 @@
 #include "ft_ping.h"
 
+/**
+ * Calculates the Internet Checksum (ICMP checksum) for the given data.
+ *
+ * @param addr The address of the data.
+ * @param len The length of the data in bytes.
+ * @return The calculated ICMP checksum.
+ */
 unsigned short icmp_cksum(unsigned char *addr, int len)
 {
     register int sum = 0;
@@ -22,6 +29,14 @@ unsigned short icmp_cksum(unsigned char *addr, int len)
     return answer;
 }
 
+/**
+ * Initializes a PING structure with the given program name, argument reader, and ping options.
+ *
+ * @param progname The name of the program.
+ * @param argr The argument reader structure.
+ * @param ping_options The ping options structure.
+ * @return A pointer to the initialized PING structure, or NULL if an error occurred.
+ */
 PING *ping_init(const char *progname, t_argr *argr, t_ping_options *ping_options)
 {
     int fd;
@@ -72,11 +87,21 @@ PING *ping_init(const char *progname, t_argr *argr, t_ping_options *ping_options
     ping->interval = 1;
     ping->datalen = ping->options->size;
     ping->ident = getpid() & 0xFFFF;
+    ping->num_emit = 0;
+    ping->num_recv = 0;
+    ping->num_rept = 0;
     gettimeofday(&ping->start_time, NULL);
 
     return ping;
 }
 
+/**
+ * Sets the destination address for the PING structure.
+ *
+ * @param ping The PING structure to set the destination for.
+ * @param host The hostname or IP address of the destination.
+ * @return Returns 0 on success, or 1 if an error occurred.
+ */
 int set_dest(PING *ping, const char *host)
 {
     struct addrinfo hints;
@@ -100,9 +125,16 @@ int set_dest(PING *ping, const char *host)
     return 0;
 }
 
+/**
+ * Sends an ICMP packet to the destination address.
+ *
+ * @param ping The PING structure containing the socket file descriptor and destination address.
+ * @param ping_args The ping options specifying the packet size.
+ * @return 0 if the packet is sent successfully, other otherwise.
+ */
 int send_packet(PING *ping, t_ping_options ping_args)
 {
-    char packet[sizeof(struct ip) + sizeof(struct icmphdr) + ping_args.size];
+    char packet[sizeof(struct icmphdr) + ping_args.size];
     struct icmphdr *icmphdr;
     struct timeval *tv;
     int len;
@@ -112,18 +144,15 @@ int send_packet(PING *ping, t_ping_options ping_args)
     icmphdr->type = ICMP_ECHO;
     icmphdr->code = 0;
     icmphdr->checksum = 0;
-    icmphdr->un.echo.id = getpid() & 0xFFFF;
-    icmphdr->un.echo.sequence = 0;
+    icmphdr->un.echo.id = ping->ident;
+    icmphdr->un.echo.sequence = htons(ping->num_emit);
 
     tv = (struct timeval *)(packet + sizeof(struct icmphdr));
     gettimeofday(tv, NULL);
 
-    len = sizeof(packet);
-    icmphdr->checksum = icmp_cksum((unsigned char *)icmphdr, len);
+    icmphdr->checksum = icmp_cksum((unsigned char *)icmphdr, sizeof(packet));
 
-    printf("id sent: %d\n", icmphdr->un.echo.id);
-
-    sent = sendto(ping->fd, packet, len, 0, (struct sockaddr *)&ping->dest, sizeof(ping->dest));
+    sent = sendto(ping->fd, packet, sizeof(packet), 0, (struct sockaddr *)&ping->dest, sizeof(ping->dest));
     if (sent < 0)
     {
         perror("sendto");
@@ -131,18 +160,25 @@ int send_packet(PING *ping, t_ping_options ping_args)
     }
 
     ping->count++;
+    ping->num_emit++;
 
     return 0;
 }
 
+/**
+ * Receives an ICMP packet and processes its contents.
+ *
+ * @param ping The PING structure containing the necessary information.
+ * @return Returns 0 on success, 1 on failure.
+ */
 int recv_packet(PING *ping)
 {
     char packet[IP_MAXPACKET];
     struct sockaddr_in from;
     socklen_t fromlen;
-    int len;
     int received;
     struct ip *iphdr;
+    size_t hlen;
 
     fromlen = sizeof(from);
     received = recvfrom(ping->fd, packet, IP_MAXPACKET, 0, (struct sockaddr *)&from, &fromlen);
@@ -154,15 +190,16 @@ int recv_packet(PING *ping)
 
     struct icmphdr *icmphdr;
 
+    iphdr = (struct ip *)packet;
+    hlen = iphdr->ip_hl << 2;
+    if (sizeof(packet) < hlen + ICMP_MINLEN)
+        return -1;
+
     /* ICMP header */
-    icmphdr = (struct icmphdr *)(packet);
-
-    uint16_t id = icmphdr->un.echo.id;
-
-    printf("id: %d\n", id);
+    icmphdr = (struct icmphdr *)(packet + hlen);
 
     printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%.2f ms\n",
-           received, ping->hostname, icmphdr->un.echo.sequence, 0, 0.0);
+           received, ping->hostname, ntohs(icmphdr->un.echo.sequence), 0, 0.0);
 
     return 0;
 }
@@ -178,7 +215,7 @@ int ft_ping(const char *argv[])
         return 1;
 
     ping_options.verbose = false;
-    ping_options.count = -1;
+    ping_options.count = PING_DEFAULT_COUNT;
     ping_options.size = PING_DEFAULT_PKT_S;
     ping_options.interval = PING_DEFAULT_INTERVAL;
 
@@ -236,10 +273,17 @@ int ft_ping(const char *argv[])
     fd_set fdset;
     struct timeval timeout, last, interval, now;
 
+    memset(&timeout, 0, sizeof(timeout));
+    memset(&interval, 0, sizeof(interval));
+    memset(&now, 0, sizeof(now));
+
+    interval.tv_sec = 1;
+    interval.tv_usec = 0;
+
     gettimeofday(&last, NULL);
     send_packet(ping, ping_options);
 
-    while (true || ping->options->count == -1)
+    while (true || ping->options->count == 0)
     {
         FD_ZERO(&fdset);
         FD_SET(ping->fd, &fdset);
@@ -253,12 +297,16 @@ int ft_ping(const char *argv[])
             timeout.tv_usec += 1000000;
             timeout.tv_sec--;
         }
+        while (timeout.tv_usec >= 1000000)
+        {
+            timeout.tv_usec -= 1000000;
+            timeout.tv_sec++;
+        }
 
         if (timeout.tv_sec < 0)
             timeout.tv_sec = timeout.tv_usec = 0;
 
         int result = select(ping->fd + 1, &fdset, NULL, NULL, &timeout);
-        printf("result: %d\n", result);
         if (result < 0)
         {
             perror("select");
@@ -268,13 +316,18 @@ int ft_ping(const char *argv[])
         else if (result == 1)
             recv_packet(ping);
         else
+        {
             send_packet(ping, ping_options);
+        }
 
-        if (ping->count == ping->options->count)
+        if (ping->count == ping->options->count && ping->num_recv == ping->num_emit)
         {
             printf("--- %s ping statistics ---\n", ping->hostname);
+            printf("%ld packets transmitted, %ld received, 0%% packet loss\n",
+                   ping->num_emit, ping->num_recv);
             break;
         }
+        gettimeofday(&last, NULL);
     }
 
     free_args(args);

@@ -79,16 +79,16 @@ int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *prognam
 int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname)
 {
     char *p;
-    ping_args->size = strtol(argr->values[0], &p, 10);
+    ping_args->size = strtoul(argr->values[0], &p, 10);
     if (*p)
     {
         printf("%s: invalid size: '%s'\n", progname, argr->values[0]);
         return 1;
     }
-    if (ping_args->size < 1 || ping_args->size > IP_MAXPACKET)
+    if (ping_args->size > PING_MAX_DATALEN)
     {
-        printf("%s: invalid argument: '%s': out of range: 1 <= value <= %d\n",
-               progname, argr->values[0], IP_MAXPACKET);
+        printf("%s: option value too big: %s\n",
+               progname, argr->values[0]);
         return 1;
     }
     return 0;
