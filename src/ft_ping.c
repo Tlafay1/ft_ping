@@ -102,7 +102,7 @@ int set_dest(PING *ping, const char *host)
 
 int send_packet(PING *ping, t_ping_options ping_args)
 {
-    char packet[ping_args.size + sizeof(struct icmphdr)];
+    char packet[sizeof(struct ip) + sizeof(struct icmphdr) + ping_args.size];
     struct icmphdr *icmphdr;
     struct timeval *tv;
     int len;
@@ -142,6 +142,7 @@ int recv_packet(PING *ping)
     socklen_t fromlen;
     int len;
     int received;
+    struct ip *iphdr;
 
     fromlen = sizeof(from);
     received = recvfrom(ping->fd, packet, IP_MAXPACKET, 0, (struct sockaddr *)&from, &fromlen);
@@ -154,7 +155,7 @@ int recv_packet(PING *ping)
     struct icmphdr *icmphdr;
 
     /* ICMP header */
-    icmphdr = (struct icmphdr *)packet;
+    icmphdr = (struct icmphdr *)(packet);
 
     uint16_t id = icmphdr->un.echo.id;
 
