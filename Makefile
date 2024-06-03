@@ -1,6 +1,6 @@
 CC=clang
 
-CFLAGS= -Wall -Wextra -g
+CFLAGS= -Wall -Wextra -g -std=gnu99
 
 RM := rm -f
 
@@ -16,7 +16,7 @@ INCLUDE := include/ft_ping.h
 
 NAME := ft_ping
 
-LIBARGPARSE_VERSION = 3.0.1
+LIBARGPARSE_VERSION = 3.1.1
 
 LIBARGPARSE_URL = https://github.com/Tlafay1/libargparse/releases/download/v$(LIBARGPARSE_VERSION)/libargparse-$(LIBARGPARSE_VERSION).tar.gz
 

@@ -111,3 +111,43 @@ int parse_interval_arg(t_ping_options *ping_args, t_argr *argr, const char *prog
     }
     return 0;
 }
+
+int parse_ttl_arg(t_ping_options *ping_args, t_argr *argr, const char *progname)
+{
+    char *p;
+    ping_args->ttl = strtol(argr->values[0], &p, 10);
+    if (errno == ERANGE)
+    {
+        printf("%s: invalid argument: '%s': %s\n",
+               progname, argr->values[0], strerror(errno));
+        return 1;
+    }
+    if (*p)
+    {
+        printf("%s: invalid ttl: '%s'\n", progname, argr->values[0]);
+        return 1;
+    }
+    if (ping_args->ttl < 1 || ping_args->ttl > 255)
+    {
+        printf("%s: invalid argument: '%s': out of range: 1 <= value <= 255\n",
+               progname, argr->values[0]);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * @brief Subtract two timeval structs.
+ *
+ * @param out The result of the subtraction.
+ * @param in The timeval struct to subtract from out.
+ */
+void tvsub(struct timeval *out, struct timeval *in)
+{
+    if ((out->tv_usec -= in->tv_usec) < 0)
+    {
+        --out->tv_sec;
+        out->tv_usec += 1000000;
+    }
+    out->tv_sec -= in->tv_sec;
+}

@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <stdio.h>
+#include <signal.h>
 
 #include <sys/time.h>
 
@@ -42,7 +43,7 @@ static t_argp argp = {
 /**
  * @brief The size of the ping packet in bytes.
  */
-#define PING_DEFAULT_PKT_S 64 - sizeof(struct icmphdr)
+#define PING_DEFAULT_PKT_S (64 - ICMP_MINLEN)
 
 /**
  * @brief The rate at which the ping loop sleeps in microseconds.
@@ -57,12 +58,17 @@ static t_argp argp = {
 /**
  * @brief The maximum size of the packet data in bytes.
  */
-#define PING_MAX_DATALEN IP_MAXPACKET - MAXIPLEN - MAXICMPLEN
+#define PING_MAX_DATALEN (IP_MAXPACKET - MAXIPLEN - MAXICMPLEN)
 
 /**
  * @brief The default number of packets to send, 0 means infinite.
  */
 #define PING_DEFAULT_COUNT 0
+
+/**
+ * @brief The default time to live value.
+ */
+#define PING_DEFAULT_TTL 64
 
 /**
  * @brief The options for the ping program.
@@ -73,13 +79,13 @@ typedef struct s_ping_options
     size_t count;
     uint16_t size;
     float interval;
+    int ttl;
 } t_ping_options;
-
-typedef struct ping_data PING;
 
 /**
  * @brief The data for the ping program.
  */
+typedef struct ping_data PING;
 struct ping_data
 {
     int fd;                       /* Socket file descriptor */
@@ -105,5 +111,7 @@ char *reverse_dns_lookup(const char *ip);
 int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_interval_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
+int parse_ttl_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
+void tvsub(struct timeval *out, struct timeval *in);
 
 #endif

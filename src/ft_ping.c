@@ -1,5 +1,7 @@
 #include "ft_ping.h"
 
+bool g_kill = false;
+
 /**
  * Calculates the Internet Checksum (ICMP checksum) for the given data.
  *
@@ -7,7 +9,8 @@
  * @param len The length of the data in bytes.
  * @return The calculated ICMP checksum.
  */
-unsigned short icmp_cksum(unsigned char *addr, int len)
+unsigned short
+icmp_cksum(unsigned char *addr, int len)
 {
     register int sum = 0;
     unsigned short answer = 0;
@@ -92,6 +95,15 @@ PING *ping_init(const char *progname, t_argr *argr, t_ping_options *ping_options
     ping->num_rept = 0;
     gettimeofday(&ping->start_time, NULL);
 
+    if (ping_options->ttl > 0)
+        if (setsockopt(ping->fd, IPPROTO_IP, IP_TTL,
+                       &ping_options->ttl, sizeof(ping_options->ttl)) < 0)
+        {
+            perror("setsockopt");
+            free(ping);
+            return NULL;
+        }
+
     return ping;
 }
 
@@ -135,22 +147,23 @@ int set_dest(PING *ping, const char *host)
 int send_packet(PING *ping, t_ping_options ping_args)
 {
     char packet[sizeof(struct icmphdr) + ping_args.size];
-    struct icmphdr *icmphdr;
-    struct timeval *tv;
+    struct icmp *icp;
+    struct timeval now;
     int len;
     int sent;
 
-    icmphdr = (struct icmphdr *)packet;
-    icmphdr->type = ICMP_ECHO;
-    icmphdr->code = 0;
-    icmphdr->checksum = 0;
-    icmphdr->un.echo.id = ping->ident;
-    icmphdr->un.echo.sequence = htons(ping->num_emit);
+    icp = (struct icmp *)packet;
+    icp->icmp_type = ICMP_ECHO;
+    icp->icmp_code = 0;
+    icp->icmp_id = htons(ping->ident);
+    icp->icmp_seq = htons(ping->num_emit);
+    icp->icmp_cksum = icmp_cksum((unsigned char *)icp, sizeof(packet));
 
-    tv = (struct timeval *)(packet + sizeof(struct icmphdr));
-    gettimeofday(tv, NULL);
-
-    icmphdr->checksum = icmp_cksum((unsigned char *)icmphdr, sizeof(packet));
+    gettimeofday(&now, NULL);
+    unsigned long v = htonl((now.tv_sec % 86400) * 1000 + now.tv_usec / 1000);
+    icp->icmp_otime = v;
+    icp->icmp_rtime = v;
+    icp->icmp_ttime = v;
 
     sent = sendto(ping->fd, packet, sizeof(packet), 0, (struct sockaddr *)&ping->dest, sizeof(ping->dest));
     if (sent < 0)
@@ -169,7 +182,7 @@ int send_packet(PING *ping, t_ping_options ping_args)
  * Receives an ICMP packet and processes its contents.
  *
  * @param ping The PING structure containing the necessary information.
- * @return Returns 0 on success, 1 on failure.
+ * @return Returns 0 on success, other on failure.
  */
 int recv_packet(PING *ping)
 {
@@ -177,8 +190,8 @@ int recv_packet(PING *ping)
     struct sockaddr_in from;
     socklen_t fromlen;
     int received;
-    struct ip *iphdr;
     size_t hlen;
+    struct timeval now, sent, *tp;
 
     fromlen = sizeof(from);
     received = recvfrom(ping->fd, packet, IP_MAXPACKET, 0, (struct sockaddr *)&from, &fromlen);
@@ -190,18 +203,38 @@ int recv_packet(PING *ping)
 
     struct icmphdr *icmphdr;
 
-    iphdr = (struct ip *)packet;
-    hlen = iphdr->ip_hl << 2;
+    struct ip *ip_packet = (struct ip *)packet;
+    hlen = ip_packet->ip_hl << 2;
     if (sizeof(packet) < hlen + ICMP_MINLEN)
         return -1;
 
     /* ICMP header */
     icmphdr = (struct icmphdr *)(packet + hlen);
 
-    printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%.2f ms\n",
-           received, ping->hostname, ntohs(icmphdr->un.echo.sequence), 0, 0.0);
+    gettimeofday(&now, NULL);
+    tp = (struct timeval *)(icmphdr);
+    memcpy(&sent, tp, sizeof(sent));
+
+    printf("now seconds: %ld, sent seconds: %ld\n", now.tv_sec, sent.tv_sec);
+    printf("now useconds: %ld, sent useconds: %ld\n", now.tv_usec, sent.tv_usec);
+
+    tvsub(&now, &sent);
+
+    printf("%d bytes from %s: icmp_seq=%d ttl=%d, time=%.3f\n",
+           received,
+           inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
+           ntohs(icmphdr->un.echo.sequence),
+           ip_packet->ip_ttl,
+           ((double)now.tv_sec) * 1000.0 + ((double)now.tv_usec) / 1000.0);
+
+    ping->num_recv++;
 
     return 0;
+}
+
+void sig_handler(__attribute__((__unused__)) int signo)
+{
+    g_kill = true;
 }
 
 int ft_ping(const char *argv[])
@@ -211,6 +244,8 @@ int ft_ping(const char *argv[])
     t_args *args;
     PING *ping;
 
+    signal(SIGINT, sig_handler);
+
     if (parse_args(&argp, argv, &args))
         return 1;
 
@@ -218,6 +253,7 @@ int ft_ping(const char *argv[])
     ping_options.count = PING_DEFAULT_COUNT;
     ping_options.size = PING_DEFAULT_PKT_S;
     ping_options.interval = PING_DEFAULT_INTERVAL;
+    ping_options.ttl = PING_DEFAULT_TTL;
 
     while ((argr = get_next_option(args)))
     {
@@ -253,6 +289,14 @@ int ft_ping(const char *argv[])
                 return 1;
             }
         }
+        if (argr->option && argr->option->sflag == 't')
+        {
+            if (parse_ttl_arg(&ping_options, argr, argv[0]))
+            {
+                free_args(args);
+                return 1;
+            }
+        }
     }
 
     argr = get_next_arg(args);
@@ -283,7 +327,7 @@ int ft_ping(const char *argv[])
     gettimeofday(&last, NULL);
     send_packet(ping, ping_options);
 
-    while (true || ping->options->count == 0)
+    while (!g_kill || ping->options->count == 0)
     {
         FD_ZERO(&fdset);
         FD_SET(ping->fd, &fdset);
@@ -307,7 +351,7 @@ int ft_ping(const char *argv[])
             timeout.tv_sec = timeout.tv_usec = 0;
 
         int result = select(ping->fd + 1, &fdset, NULL, NULL, &timeout);
-        if (result < 0)
+        if (result < 0 && errno != EINTR)
         {
             perror("select");
             free_args(args);
@@ -321,14 +365,14 @@ int ft_ping(const char *argv[])
         }
 
         if (ping->count == ping->options->count && ping->num_recv == ping->num_emit)
-        {
-            printf("--- %s ping statistics ---\n", ping->hostname);
-            printf("%ld packets transmitted, %ld received, 0%% packet loss\n",
-                   ping->num_emit, ping->num_recv);
             break;
-        }
         gettimeofday(&last, NULL);
     }
+
+    printf("--- %s ping statistics ---\n", ping->hostname);
+    printf("%ld packets transmitted, %ld packets received, %d%% packet loss\n",
+           ping->num_emit, ping->num_recv,
+           (int)(100 - (float)ping->num_recv / (float)ping->num_emit * 100));
 
     free_args(args);
 
