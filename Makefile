@@ -1,6 +1,6 @@
 CC=clang
 
-CFLAGS= -Wall -Wextra -g -std=gnu99
+CFLAGS= -Wall -Wextra -g -std=gnu99 -fsanitize=leak,address,undefined
 
 RM := rm -f
 

@@ -146,11 +146,13 @@ int set_dest(PING *ping, const char *host)
  */
 int send_packet(PING *ping, t_ping_options ping_args)
 {
-    char packet[sizeof(struct icmphdr) + ping_args.size];
+    char *packet;
     struct icmp *icp;
     struct timeval now;
     int len;
     int sent;
+
+    packet = malloc(sizeof(struct icmphdr) + ping_args.size + 8);
 
     icp = (struct icmp *)packet;
     icp->icmp_type = ICMP_ECHO;
@@ -174,6 +176,8 @@ int send_packet(PING *ping, t_ping_options ping_args)
 
     ping->count++;
     ping->num_emit++;
+
+    free(packet);
 
     return 0;
 }
@@ -373,6 +377,10 @@ int ft_ping(const char *argv[])
     printf("%ld packets transmitted, %ld packets received, %d%% packet loss\n",
            ping->num_emit, ping->num_recv,
            (int)(100 - (float)ping->num_recv / (float)ping->num_emit * 100));
+
+    close(ping->fd);
+    free(ping->hostname);
+    free(ping);
 
     free_args(args);
 
