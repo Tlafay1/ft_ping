@@ -1,23 +1,5 @@
 #include "tests.hpp"
 
-TEST(Utils, DnsLookupLocalhost)
-{
-    char *ip = dns_lookup("localhost");
-    ASSERT_STREQ(ip, "127.0.0.1");
-}
-
-TEST(Utils, DnsLookupLocalhostIP)
-{
-    char *ip = dns_lookup("127.0.0.1");
-    ASSERT_STREQ(ip, "127.0.0.1");
-}
-
-TEST(Utils, ReverseDnsLookupLocalhost)
-{
-    char *host = reverse_dns_lookup("127.0.0.1");
-    ASSERT_STREQ(host, "localhost");
-}
-
 TEST(Utils, ParseCountArgsNormal)
 {
     t_ping_options ping_options;

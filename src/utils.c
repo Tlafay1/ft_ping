@@ -1,50 +1,6 @@
 #include "ft_ping.h"
 
 /**
- * @brief The IP address of a given hostname.
- *
- * @param host The hostname to resolve. Examples: "localhost", "127.0.0.1"
- * @return The IP address as a string, or NULL if the resolution fails.
- * @note The returned string must be freed by the caller.
- */
-char *dns_lookup(const char *host)
-{
-    struct addrinfo hints;
-    struct addrinfo *res;
-    char *ip = NULL;
-
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if (getaddrinfo(host, NULL, &hints, &res) != 0)
-        return NULL;
-
-    struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
-    ip = ft_strdup(inet_ntoa(ipv4->sin_addr));
-    freeaddrinfo(res);
-    return ip;
-}
-
-/**
- * @brief The hostname of a given IP address.
- * @param ip The IP address to resolve.
- * @return The hostname as a string, or NULL if the resolution fails.
- * @note The returned string must be freed by the caller.
- */
-char *reverse_dns_lookup(const char *ip)
-{
-    struct sockaddr_in sa;
-    char host[1024];
-    char service[20];
-
-    sa.sin_family = AF_INET;
-    sa.sin_addr.s_addr = inet_addr(ip);
-    getnameinfo((struct sockaddr *)&sa, sizeof(sa), host, 1024, service, 20, 0);
-    return ft_strdup(host);
-}
-
-/**
  * Parses the count argument and stores it in the ping_args structure.
  *
  * @param ping_args - Pointer to the t_ping_args structure to store the parsed count.

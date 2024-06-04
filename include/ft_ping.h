@@ -30,7 +30,7 @@ static t_argo options[] = {
     {'t', "ttl", "time to live", "define time to live", ONE_ARG},
     {'v', "verbose", "verbose", "verbose output", NO_ARG},
     {'?', "help", "help", "print help and exit", NO_ARG},
-    {0}};
+    {0, NULL, NULL, NULL, NO_ARG}};
 
 static t_argp argp = {
     .options = options,
