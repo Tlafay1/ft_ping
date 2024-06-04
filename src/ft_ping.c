@@ -147,27 +147,26 @@ int set_dest(PING *ping, const char *host)
 int send_packet(PING *ping, t_ping_options ping_args)
 {
     char *packet;
-    struct icmp *icp;
+    struct icmphdr *icp;
     struct timeval now;
     int len;
     int sent;
 
-    packet = malloc(sizeof(struct icmphdr) + ping_args.size + 8);
+    len = sizeof(struct icmphdr) + ping_args.size;
 
-    icp = (struct icmp *)packet;
-    icp->icmp_type = ICMP_ECHO;
-    icp->icmp_code = 0;
-    icp->icmp_id = htons(ping->ident);
-    icp->icmp_seq = htons(ping->num_emit);
-    icp->icmp_cksum = icmp_cksum((unsigned char *)icp, sizeof(packet));
+    packet = malloc(len);
+
+    icp = (struct icmphdr *)packet;
+    icp->type = ICMP_ECHO;
+    icp->code = 0;
+    icp->un.echo.id = htons(ping->ident);
+    icp->un.echo.sequence = htons(ping->num_emit);
+    icp->checksum = icmp_cksum((unsigned char *)icp, sizeof(packet));
 
     gettimeofday(&now, NULL);
-    unsigned long v = htonl((now.tv_sec % 86400) * 1000 + now.tv_usec / 1000);
-    icp->icmp_otime = v;
-    icp->icmp_rtime = v;
-    icp->icmp_ttime = v;
+    memcpy(packet + sizeof(struct icmphdr), &now, sizeof(now));
 
-    sent = sendto(ping->fd, packet, sizeof(packet), 0, (struct sockaddr *)&ping->dest, sizeof(ping->dest));
+    sent = sendto(ping->fd, packet, len, 0, (struct sockaddr *)&ping->dest, sizeof(ping->dest));
     if (sent < 0)
     {
         perror("sendto");
@@ -196,6 +195,7 @@ int recv_packet(PING *ping)
     int received;
     size_t hlen;
     struct timeval now, sent, *tp;
+    struct icmphdr *icp;
 
     fromlen = sizeof(from);
     received = recvfrom(ping->fd, packet, IP_MAXPACKET, 0, (struct sockaddr *)&from, &fromlen);
@@ -205,29 +205,22 @@ int recv_packet(PING *ping)
         return 1;
     }
 
-    struct icmphdr *icmphdr;
-
     struct ip *ip_packet = (struct ip *)packet;
     hlen = ip_packet->ip_hl << 2;
     if (sizeof(packet) < hlen + ICMP_MINLEN)
         return -1;
 
-    /* ICMP header */
-    icmphdr = (struct icmphdr *)(packet + hlen);
-
     gettimeofday(&now, NULL);
-    tp = (struct timeval *)(icmphdr);
+    tp = (struct timeval *)(packet + hlen + sizeof(struct icmphdr));
     memcpy(&sent, tp, sizeof(sent));
-
-    printf("now seconds: %ld, sent seconds: %ld\n", now.tv_sec, sent.tv_sec);
-    printf("now useconds: %ld, sent useconds: %ld\n", now.tv_usec, sent.tv_usec);
-
     tvsub(&now, &sent);
 
-    printf("%d bytes from %s: icmp_seq=%d ttl=%d, time=%.3f\n",
+    icp = (struct icmphdr *)(packet + hlen);
+
+    printf("%d bytes from %s: icmp_seq=%d ttl=%d, time=%.3f ms\n",
            received,
            inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
-           ntohs(icmphdr->un.echo.sequence),
+           ntohs(icp->un.echo.sequence),
            ip_packet->ip_ttl,
            ((double)now.tv_sec) * 1000.0 + ((double)now.tv_usec) / 1000.0);
 
@@ -373,10 +366,11 @@ int ft_ping(const char *argv[])
         gettimeofday(&last, NULL);
     }
 
+    int packet_loss = (int)(100.0 - (float)ping->num_recv / (float)ping->num_emit * 100.0);
     printf("--- %s ping statistics ---\n", ping->hostname);
     printf("%ld packets transmitted, %ld packets received, %d%% packet loss\n",
            ping->num_emit, ping->num_recv,
-           (int)(100 - (float)ping->num_recv / (float)ping->num_emit * 100));
+           packet_loss);
 
     close(ping->fd);
     free(ping->hostname);
