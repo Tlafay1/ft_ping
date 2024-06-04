@@ -82,6 +82,13 @@ typedef struct s_ping_options
     int ttl;
 } t_ping_options;
 
+typedef struct s_ping_stats
+{
+    float min;
+    float max;
+    float sum;
+} t_ping_stats;
+
 /**
  * @brief The data for the ping program.
  */

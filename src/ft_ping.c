@@ -40,7 +40,7 @@ icmp_cksum(unsigned char *addr, int len)
  * @param ping_options The ping options structure.
  * @return A pointer to the initialized PING structure, or NULL if an error occurred.
  */
-PING *ping_init(const char *progname, t_argr *argr, t_ping_options *ping_options)
+PING *ping_init(const char *progname, t_ping_options *ping_options, t_ping_stats *stats)
 {
     int fd;
     struct protoent *proto;
@@ -94,6 +94,10 @@ PING *ping_init(const char *progname, t_argr *argr, t_ping_options *ping_options
     ping->num_recv = 0;
     ping->num_rept = 0;
     gettimeofday(&ping->start_time, NULL);
+
+    stats->sum = -1;
+    stats->min = -1;
+    stats->max = -1;
 
     if (ping_options->ttl > 0)
         if (setsockopt(ping->fd, IPPROTO_IP, IP_TTL,
@@ -181,13 +185,29 @@ int send_packet(PING *ping, t_ping_options ping_args)
     return 0;
 }
 
+void calculate_stats(t_ping_stats *stats, struct timeval *sent)
+{
+    if (stats->min == -1)
+        stats->min = sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0;
+    else
+        stats->min = stats->min < sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0 ? stats->min : sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0;
+    if (stats->max == -1)
+        stats->max = sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0;
+    else
+        stats->max = stats->max > sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0 ? stats->max : sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0;
+    if (stats->sum == -1)
+        stats->sum = sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0;
+    else
+        stats->sum += sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0;
+}
+
 /**
  * Receives an ICMP packet and processes its contents.
  *
  * @param ping The PING structure containing the necessary information.
  * @return Returns 0 on success, other on failure.
  */
-int recv_packet(PING *ping)
+int recv_packet(PING *ping, t_ping_stats *stats)
 {
     char packet[IP_MAXPACKET];
     struct sockaddr_in from;
@@ -205,10 +225,12 @@ int recv_packet(PING *ping)
         return 1;
     }
 
-    struct ip *ip_packet = (struct ip *)packet;
-    hlen = ip_packet->ip_hl << 2;
     if (sizeof(packet) < hlen + ICMP_MINLEN)
         return -1;
+
+    struct ip *ip_packet = (struct ip *)packet;
+    hlen = ip_packet->ip_hl << 2;
+    received -= hlen;
 
     gettimeofday(&now, NULL);
     tp = (struct timeval *)(packet + hlen + sizeof(struct icmphdr));
@@ -217,14 +239,19 @@ int recv_packet(PING *ping)
 
     icp = (struct icmphdr *)(packet + hlen);
 
-    printf("%d bytes from %s: icmp_seq=%d ttl=%d, time=%.3f ms\n",
+    printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%.3f ms\n",
            received,
            inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
            ntohs(icp->un.echo.sequence),
            ip_packet->ip_ttl,
            ((double)now.tv_sec) * 1000.0 + ((double)now.tv_usec) / 1000.0);
 
+    if (icp->un.echo.id != ping->ident)
+        print_time((struct timeval *)(packet + hlen + sizeof(struct icmphdr)));
+
     ping->num_recv++;
+
+    calculate_stats(stats, &now);
 
     return 0;
 }
@@ -239,6 +266,7 @@ int ft_ping(const char *argv[])
     t_argr *argr;
     t_ping_options ping_options;
     t_args *args;
+    t_ping_stats stats;
     PING *ping;
 
     signal(SIGINT, sig_handler);
@@ -305,10 +333,10 @@ int ft_ping(const char *argv[])
         return 1;
     }
 
-    ping = ping_init(argv[0], argr, &ping_options);
+    ping = ping_init(argv[0], &ping_options, &stats);
     set_dest(ping, argr->values[0]);
 
-    printf("PING %s (%s) %ld bytes of data.\n",
+    printf("PING %s (%s): %ld bytes of data.\n",
            ping->hostname, inet_ntoa(ping->dest.sin_addr), ping->datalen);
 
     fd_set fdset;
@@ -355,7 +383,7 @@ int ft_ping(const char *argv[])
             return 1;
         }
         else if (result == 1)
-            recv_packet(ping);
+            recv_packet(ping, &stats);
         else
         {
             send_packet(ping, ping_options);
@@ -371,6 +399,11 @@ int ft_ping(const char *argv[])
     printf("%ld packets transmitted, %ld packets received, %d%% packet loss\n",
            ping->num_emit, ping->num_recv,
            packet_loss);
+    printf("round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n",
+           stats.min,
+           stats.sum / ping->num_recv,
+           stats.max,
+           stats.sum / ping->num_recv);
 
     close(ping->fd);
     free(ping->hostname);
