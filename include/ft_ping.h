@@ -111,16 +111,21 @@ struct ping_data
     size_t num_emit;              /* Number of packets transmitted */
     size_t num_recv;              /* Number of packets received */
     size_t num_rept;              /* Number of duplicates received */
-    t_ping_options *options;      /* Ping options */
+    t_ping_options options;       /* Ping options */
+    t_ping_stats stats;           /* Ping statistics */
 };
 
 int ft_ping(const char *argv[]);
-char *dns_lookup(const char *host);
-char *reverse_dns_lookup(const char *ip);
 int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_interval_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_ttl_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 void tvsub(struct timeval *out, struct timeval *in);
+int parse_ping_options(t_ping_options *ping_options, t_args *args, const char *progname);
+int ping_parse_args(PING *ping, const char *argv[]);
+void print_stats(PING *ping);
+void print_header(PING *ping);
+void print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now);
+void calculate_stats(t_ping_stats *stats, struct timeval *sent);
 
 #endif

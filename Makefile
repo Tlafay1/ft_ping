@@ -1,10 +1,10 @@
 CC=clang
 
-CFLAGS= -Wall -Wextra -g -std=gnu99 -fsanitize=leak,address,undefined
+CFLAGS= -Wall -Wextra -std=gnu99 -fsanitize=leak,address,undefined
 
 RM := rm -f
 
-SRCS := ft_ping.c main.c utils.c
+SRCS := ft_ping.c main.c utils.c init.c print.c stats.c
 
 TESTS := main.cpp tests_utils.cpp
 
