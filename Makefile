@@ -50,6 +50,7 @@ $(NAME): libs $(OBJS)
 		-lft \
 		-largparse \
 		-Wl,-R./libft
+	sudo setcap cap_net_raw=ep $(NAME)
 
 obj/%.o : src/%.c $(INCLUDE)
 	mkdir -p obj

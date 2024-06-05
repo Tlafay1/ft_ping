@@ -9,27 +9,29 @@ bool g_kill = false;
  * @param len The length of the data in bytes.
  * @return The calculated ICMP checksum.
  */
-unsigned short
-icmp_cksum(unsigned char *addr, int len)
+uint16_t icmp_cksum(uint16_t *icmph, int len)
 {
-    register int sum = 0;
-    unsigned short answer = 0;
-    unsigned short *wp;
+    uint16_t ret = 0;
+    uint32_t sum = 0;
+    uint16_t odd_byte;
 
-    for (wp = (unsigned short *)addr; len > 1; wp++, len -= 2)
-        sum += *wp;
-
-    /* Take in an odd byte if present */
-    if (len == 1)
+    while (len > 1)
     {
-        *(unsigned char *)&answer = *(unsigned char *)wp;
-        sum += answer;
+        sum += *icmph++;
+        len -= 2;
     }
 
-    sum = (sum >> 16) + (sum & 0xffff); /* add high 16 to low 16 */
-    sum += (sum >> 16);                 /* add carry */
-    answer = ~sum;                      /* truncate to 16 bits */
-    return answer;
+    if (len == 1)
+    {
+        *(uint8_t *)(&odd_byte) = *(uint8_t *)icmph;
+        sum += odd_byte;
+    }
+
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += (sum >> 16);
+    ret = ~sum;
+
+    return ret;
 }
 
 /**
@@ -165,7 +167,7 @@ int send_packet(PING *ping, t_ping_options ping_args)
     icp->code = 0;
     icp->un.echo.id = htons(ping->ident);
     icp->un.echo.sequence = htons(ping->num_emit);
-    icp->checksum = icmp_cksum((unsigned char *)icp, sizeof(packet));
+    icp->checksum = icmp_cksum((uint16_t *)icp, len);
 
     if (len >= sizeof(struct icmphdr) + sizeof(struct timeval))
     {
@@ -204,13 +206,49 @@ void calculate_stats(t_ping_stats *stats, struct timeval *sent)
         stats->sum += sent->tv_sec * 1000.0 + sent->tv_usec / 1000.0;
 }
 
+void ping_print(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now)
+{
+    char message[40];
+    char time[20];
+
+    switch (type)
+    {
+    case ICMP_ECHO:
+    case ICMP_ECHOREPLY:
+        if (received >= (ssize_t)(hlen + sizeof(struct icmphdr) + sizeof(struct timeval)))
+            snprintf(time, 20, " time=%.3f ms", ((double)now->tv_sec) * 1000.0 + ((double)now->tv_usec) / 1000.0);
+        else
+            snprintf(time, 1, "");
+        snprintf(message, 40, "icmp_seq=%d ttl=%d%s",
+                 seq,
+                 ttl,
+                 time);
+        break;
+    case ICMP_DEST_UNREACH:
+        snprintf(message, 30, "Destination Host Unreachable");
+        break;
+    case ICMP_TIME_EXCEEDED:
+        snprintf(message, 23, "Time to live exceeded");
+        break;
+    default:
+        snprintf(message, 22, "Unknown ICMP type %d", type);
+        break;
+    }
+    printf("%ld bytes from %s: %s",
+           received,
+           from,
+           message);
+
+    printf("\n");
+}
+
 /**
  * Receives an ICMP packet and processes its contents.
  *
  * @param ping The PING structure containing the necessary information.
  * @return Returns 0 on success, other on failure.
  */
-int recv_packet(PING *ping, t_ping_stats *stats)
+int recv_packet(PING *ping, t_ping_stats *stats, t_ping_options ping_options)
 {
     char packet[IP_MAXPACKET];
     struct sockaddr_in from;
@@ -234,30 +272,22 @@ int recv_packet(PING *ping, t_ping_stats *stats)
     if (received < hlen + ICMP_MINLEN)
         return -1;
 
-    received -= hlen;
-
     icp = (struct icmphdr *)(packet + hlen);
-
-    if (icmp_cksum((unsigned char *)icp, received) != 0) // Checksum over the entire ICMP packet, including IP header
-    {
-        printf("ping: checksum error\n");
-    }
-
-    printf("%ld bytes from %s: icmp_seq=%d ttl=%d",
-           received,
-           inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
-           ntohs(icp->un.echo.sequence),
-           ip_packet->ip_ttl);
 
     gettimeofday(&now, NULL);
     tp = (struct timeval *)(icp + 1);
     memcpy(&sent, tp, sizeof(sent));
     tvsub(&now, &sent);
 
-    if (received >= (ssize_t)(hlen + sizeof(struct icmphdr) + sizeof(struct timeval)))
-        printf(" time=%.3f ms", ((double)now.tv_sec) * 1000.0 + ((double)now.tv_usec) / 1000.0);
-
-    printf("\n");
+    if (!ping_options.quiet)
+        ping_print(
+            icp->type,
+            hlen,
+            received - hlen,
+            inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
+            ntohs(icp->un.echo.sequence),
+            ip_packet->ip_ttl,
+            &now);
 
     ping->num_recv++;
 
@@ -289,6 +319,7 @@ int ft_ping(const char *argv[])
     ping_options.size = PING_DEFAULT_PKT_S;
     ping_options.interval = PING_DEFAULT_INTERVAL;
     ping_options.ttl = PING_DEFAULT_TTL;
+    ping_options.quiet = false;
 
     while ((argr = get_next_option(args)))
     {
@@ -332,6 +363,8 @@ int ft_ping(const char *argv[])
                 return 1;
             }
         }
+        if (argr->option && argr->option->sflag == 'q')
+            ping_options.quiet = true;
     }
 
     argr = get_next_arg(args);
@@ -346,8 +379,12 @@ int ft_ping(const char *argv[])
     ping = ping_init(argv[0], &ping_options, &stats);
     set_dest(ping, argr->values[0]);
 
-    printf("PING %s (%s): %ld bytes of data.\n",
+    printf("PING %s (%s): %ld bytes of data",
            ping->hostname, inet_ntoa(ping->dest.sin_addr), ping->datalen);
+
+    if (ping->options->verbose)
+        printf(", id 0x%x = %d", ping->ident, ping->ident);
+    printf("\n");
 
     fd_set fdset;
     struct timeval timeout, last, interval, now;
@@ -393,7 +430,9 @@ int ft_ping(const char *argv[])
             return 1;
         }
         else if (result == 1)
-            recv_packet(ping, &stats);
+        {
+            recv_packet(ping, &stats, ping_options);
+        }
         else if (ping->num_emit < ping->options->count && !g_kill)
         {
             send_packet(ping, ping_options);

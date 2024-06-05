@@ -26,6 +26,7 @@
 static t_argo options[] = {
     {'c', "count", "count", "stop after <count> replies", ONE_ARG},
     {'i', "interval", "interval", "wait NUMBER seconds between sending each packet", ONE_ARG},
+    {'q', "quiet", "quiet", "quiet output", NO_ARG},
     {'s', "size", "data size", "use <size> as number of data bytes to be sent", ONE_ARG},
     {'t', "ttl", "time to live", "define time to live", ONE_ARG},
     {'v', "verbose", "verbose", "verbose output", NO_ARG},
@@ -80,6 +81,7 @@ typedef struct s_ping_options
     uint16_t size;
     float interval;
     int ttl;
+    bool quiet;
 } t_ping_options;
 
 typedef struct s_ping_stats
