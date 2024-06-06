@@ -1,16 +1,16 @@
 #include "tests.hpp"
 
-// TEST(Icmp, OpenSocket)
-// {
-//     ASSERT_EQ(ping_open_socket("ft_ping"), -1);
-// }
+TEST(Icmp, OpenSocket)
+{
+    ASSERT_NE(ping_open_socket("ft_ping"), -1);
+}
 
-// TEST(Icmp, Init)
-// {
-//     PING ping;
-//     int ret = ping_init(&ping, "ft_ping");
-//     ASSERT_EQ(ret, 0);
-// }
+TEST(Icmp, Init)
+{
+    PING ping;
+    int ret = ping_init(&ping, "ft_ping");
+    ASSERT_EQ(ret, 0);
+}
 
 // TEST(Icmp, CreatePacket)
 // {

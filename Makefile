@@ -97,6 +97,7 @@ re: fclean all
 .PHONY : all \
 	re \
 	libs \
+	tests \
 	libft \
 	clean \
 	fclean \
