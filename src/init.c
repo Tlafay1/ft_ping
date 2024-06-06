@@ -1,5 +1,18 @@
 #include "ft_ping.h"
 
+/**
+ * Opens a socket for ICMP communication.
+ *
+ * This function creates a socket for sending and receiving ICMP packets.
+ * It first retrieves the protocol information for ICMP using `getprotobyname()`.
+ * If the protocol information is not found, an error message is printed and -1 is returned.
+ * Otherwise, it creates a raw socket using `socket()` with the retrieved protocol.
+ * If the raw socket creation fails due to lack of privilege, it falls back to creating a datagram socket.
+ * If the socket creation fails for any other reason, an error message is printed and -1 is returned.
+ *
+ * @param progname The name of the program.
+ * @return The file descriptor of the opened socket, or -1 if an error occurred.
+ */
 static int ping_open_socket(const char *progname)
 {
     int fd;
@@ -168,15 +181,23 @@ int parse_ping_options(t_ping_options *ping_options, t_args *args, const char *p
     return 0;
 }
 
+/**
+ * Parses the command line arguments and initializes the PING structure.
+ *
+ * @param ping The PING structure to be initialized.
+ * @param argv The command line arguments.
+ * @return Returns 0 on success, or 1 if there was an error.
+ */
 int ping_parse_args(PING *ping, const char *argv[])
 {
     t_args *args;
     int ret;
 
     if (parse_args(&argp, argv, &args))
+    {
+        free_args(args);
         return 1;
-    ret = parse_ping_options(&ping->options, args, argv[0]);
-    ping = ping_init(ping, argv[0]);
+    }
     t_argr *argr = get_next_arg(args);
 
     if (!argr)
@@ -185,6 +206,8 @@ int ping_parse_args(PING *ping, const char *argv[])
         free_args(args);
         return 1;
     }
+    ret = parse_ping_options(&ping->options, args, argv[0]);
+    ping = ping_init(ping, argv[0]);
     set_dest(ping, argr->values[0]);
     free_args(args);
     return ret;

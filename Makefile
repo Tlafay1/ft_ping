@@ -4,7 +4,7 @@ CFLAGS= -Wall -Wextra -std=gnu99 -fsanitize=leak,address,undefined
 
 RM := rm -f
 
-SRCS := ft_ping.c main.c utils.c init.c print.c stats.c
+SRCS := ft_ping.c main.c utils.c init.c print.c stats.c icmp.c
 
 TESTS := main.cpp tests_utils.cpp
 

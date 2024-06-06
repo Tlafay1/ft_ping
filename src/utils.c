@@ -107,3 +107,35 @@ void tvsub(struct timeval *out, struct timeval *in)
     }
     out->tv_sec -= in->tv_sec;
 }
+
+/**
+ * Calculates the Internet Checksum (ICMP checksum) for the given data.
+ *
+ * @param addr The address of the data.
+ * @param len The length of the data in bytes.
+ * @return The calculated ICMP checksum.
+ */
+uint16_t icmp_cksum(uint16_t *icmph, int len)
+{
+    uint16_t ret = 0;
+    uint32_t sum = 0;
+    uint16_t odd_byte;
+
+    while (len > 1)
+    {
+        sum += *icmph++;
+        len -= 2;
+    }
+
+    if (len == 1)
+    {
+        *(uint8_t *)(&odd_byte) = *(uint8_t *)icmph;
+        sum += odd_byte;
+    }
+
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += (sum >> 16);
+    ret = ~sum;
+
+    return ret;
+}

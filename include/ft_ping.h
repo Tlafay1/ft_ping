@@ -115,17 +115,31 @@ struct ping_data
     t_ping_stats stats;           /* Ping statistics */
 };
 
+/* ft_ping.c */
 int ft_ping(const char *argv[]);
+
+/* init.c */
+int parse_ping_options(t_ping_options *ping_options, t_args *args, const char *progname);
+int ping_parse_args(PING *ping, const char *argv[]);
+
+/* print.c */
+void print_stats(PING *ping);
+void print_header(PING *ping);
+void print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now);
+
+/* stats.c */
+void calculate_stats(t_ping_stats *stats, struct timeval *sent);
+
+/* icmp.c */
+int send_packet(PING *ping);
+int recv_packet(PING *ping);
+
+/* utils.c */
+uint16_t icmp_cksum(uint16_t *icmph, int len);
+void tvsub(struct timeval *out, struct timeval *in);
 int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_interval_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_ttl_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
-void tvsub(struct timeval *out, struct timeval *in);
-int parse_ping_options(t_ping_options *ping_options, t_args *args, const char *progname);
-int ping_parse_args(PING *ping, const char *argv[]);
-void print_stats(PING *ping);
-void print_header(PING *ping);
-void print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now);
-void calculate_stats(t_ping_stats *stats, struct timeval *sent);
 
 #endif
