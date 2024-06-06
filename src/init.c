@@ -13,7 +13,7 @@
  * @param progname The name of the program.
  * @return The file descriptor of the opened socket, or -1 if an error occurred.
  */
-static int ping_open_socket(const char *progname)
+int ping_open_socket(const char *progname)
 {
     int fd;
     struct protoent *proto;
@@ -57,7 +57,7 @@ static int ping_open_socket(const char *progname)
  * @param ping_options The ping options structure.
  * @return A pointer to the initialized PING structure, or NULL if an error occurred.
  */
-static PING *ping_init(PING *ping, const char *progname)
+int ping_init(PING *ping, const char *progname)
 {
     ping->fd = ping_open_socket(progname);
     ping->count = 0;
@@ -79,10 +79,10 @@ static PING *ping_init(PING *ping, const char *progname)
         {
             perror("setsockopt");
             free(ping);
-            return NULL;
+            return (1);
         }
 
-    return ping;
+    return (0);
 }
 
 /**
@@ -108,7 +108,7 @@ static int set_dest(PING *ping, const char *host)
     ipv4 = (struct sockaddr_in *)res->ai_addr;
     ping->dest = *ipv4;
 
-    ping->hostname = strdup(host);
+    ft_strlcpy(ping->hostname, host, HOST_NAME_MAX);
 
     freeaddrinfo(res);
 
@@ -147,31 +147,19 @@ int parse_ping_options(t_ping_options *ping_options, t_args *args, const char *p
             break;
         case 'c':
             if (parse_count_arg(ping_options, argr, progname))
-            {
-                free_args(args);
                 return 1;
-            }
             break;
         case 's':
             if (parse_size_arg(ping_options, argr, progname))
-            {
-                free_args(args);
                 return 1;
-            }
             break;
         case 'i':
             if (parse_interval_arg(ping_options, argr, progname))
-            {
-                free_args(args);
                 return 1;
-            }
             break;
         case 't':
             if (parse_ttl_arg(ping_options, argr, progname))
-            {
-                free_args(args);
                 return 1;
-            }
             break;
         case 'q':
             ping_options->quiet = true;
@@ -191,24 +179,19 @@ int parse_ping_options(t_ping_options *ping_options, t_args *args, const char *p
 int ping_parse_args(PING *ping, const char *argv[])
 {
     t_args *args;
-    int ret;
 
     if (parse_args(&argp, argv, &args))
-    {
-        free_args(args);
         return 1;
-    }
     t_argr *argr = get_next_arg(args);
 
     if (!argr)
     {
         printf("%s: destination argument required\n", argv[0]);
-        free_args(args);
         return 1;
     }
-    ret = parse_ping_options(&ping->options, args, argv[0]);
-    ping = ping_init(ping, argv[0]);
+    if (parse_ping_options(&ping->options, args, argv[0]) || ping_init(ping, argv[0]))
+        return 1;
     set_dest(ping, argr->values[0]);
     free_args(args);
-    return ret;
+    return 0;
 }

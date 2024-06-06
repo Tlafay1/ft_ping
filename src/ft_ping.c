@@ -10,7 +10,7 @@ void sig_handler(__attribute__((__unused__)) int signo)
 int ping_loop(PING *ping)
 {
     fd_set fdset;
-    struct timeval timeout, last, interval, now;
+    struct timeval timeout, last, interval;
 
     FD_ZERO(&fdset);
     FD_SET(ping->fd, &fdset);
@@ -26,23 +26,7 @@ int ping_loop(PING *ping)
         FD_ZERO(&fdset);
         FD_SET(ping->fd, &fdset);
 
-        gettimeofday(&now, NULL);
-        timeout.tv_sec = last.tv_sec + interval.tv_sec - now.tv_sec;
-        timeout.tv_usec = last.tv_usec + interval.tv_usec - now.tv_usec;
-
-        while (timeout.tv_usec < 0)
-        {
-            timeout.tv_usec += 1000000;
-            timeout.tv_sec--;
-        }
-        while (timeout.tv_usec >= 1000000)
-        {
-            timeout.tv_usec -= 1000000;
-            timeout.tv_sec++;
-        }
-
-        if (timeout.tv_sec < 0)
-            timeout.tv_sec = timeout.tv_usec = 0;
+        calculate_timeout(&timeout, &last, &interval);
 
         int result = select(ping->fd + 1, &fdset, NULL, NULL, &timeout);
         if (result < 0 && errno != EINTR)
@@ -51,18 +35,12 @@ int ping_loop(PING *ping)
             return 1;
         }
         else if (result == 1)
-        {
             recv_packet(ping);
-        }
         else if (ping->num_emit < ping->options.count && !g_kill)
-        {
             send_packet(ping);
-        }
 
         if (ping->count == ping->options.count && ping->num_recv == ping->num_emit)
-        {
             break;
-        }
 
         gettimeofday(&last, NULL);
     }
@@ -76,10 +54,7 @@ int ft_ping(const char *argv[])
     int result;
 
     if (ping_parse_args(&ping, argv))
-    {
-        free(ping.hostname);
         return 1;
-    }
 
     signal(SIGINT, sig_handler);
 
@@ -90,7 +65,5 @@ int ft_ping(const char *argv[])
     print_stats(&ping);
 
     close(ping.fd);
-    free(ping.hostname);
-
     return result;
 }

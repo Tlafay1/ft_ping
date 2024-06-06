@@ -104,10 +104,9 @@ struct ping_data
     size_t interval;              /* Interval between packets */
     struct sockaddr_in dest;      /* Destination address */
     struct sockaddr_in from;      /* Source address */
-    char *hostname;               /* Hostname */
+    char hostname[HOST_NAME_MAX]; /* Hostname */
     size_t datalen;               /* Data byte count */
     struct icmphdr hdr;           /* ICMP header */
-    unsigned char *packet_buffer; /* Packet buffer */
     size_t num_emit;              /* Number of packets transmitted */
     size_t num_recv;              /* Number of packets received */
     size_t num_rept;              /* Number of duplicates received */
@@ -121,6 +120,8 @@ int ft_ping(const char *argv[]);
 /* init.c */
 int parse_ping_options(t_ping_options *ping_options, t_args *args, const char *progname);
 int ping_parse_args(PING *ping, const char *argv[]);
+int ping_open_socket(const char *progname);
+int ping_init(PING *ping, const char *progname);
 
 /* print.c */
 void print_stats(PING *ping);
@@ -133,6 +134,7 @@ void calculate_stats(t_ping_stats *stats, struct timeval *sent);
 /* icmp.c */
 int send_packet(PING *ping);
 int recv_packet(PING *ping);
+void create_packet(PING *ping, struct icmphdr *packet, size_t len);
 
 /* utils.c */
 uint16_t icmp_cksum(uint16_t *icmph, int len);
@@ -141,5 +143,6 @@ int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *prognam
 int parse_size_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_interval_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
 int parse_ttl_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);
+void calculate_timeout(struct timeval *timeout, struct timeval *last, struct timeval *interval);
 
 #endif

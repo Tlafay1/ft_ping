@@ -1,12 +1,12 @@
 CC=clang
 
-CFLAGS= -Wall -Wextra -std=gnu99 -fsanitize=leak,address,undefined
+CFLAGS= -Wall -Wextra -std=gnu99 -g
 
 RM := rm -f
 
 SRCS := ft_ping.c main.c utils.c init.c print.c stats.c icmp.c
 
-TESTS := main.cpp tests_utils.cpp
+TESTS := tests_utils.cpp tests_icmp.cpp
 
 TESTS := $(addprefix tests/, $(TESTS))
 
@@ -16,7 +16,7 @@ INCLUDE := include/ft_ping.h
 
 NAME := ft_ping
 
-LIBARGPARSE_VERSION = 3.1.1
+LIBARGPARSE_VERSION = 4.0.0
 
 LIBARGPARSE_URL = https://github.com/Tlafay1/libargparse/releases/download/v$(LIBARGPARSE_VERSION)/libargparse-$(LIBARGPARSE_VERSION).tar.gz
 
@@ -50,7 +50,7 @@ $(NAME): libs $(OBJS)
 		-lft \
 		-largparse \
 		-Wl,-R./libft
-	sudo setcap cap_net_raw=ep $(NAME)
+	# sudo setcap cap_net_raw=ep $(NAME)
 
 obj/%.o : src/%.c $(INCLUDE)
 	mkdir -p obj
@@ -85,10 +85,11 @@ tests/test: libs $(OBJS)
 		-I./$(LIBARGPARSE_NAME)/include \
 		-pthread \
 		-lgtest \
+		-lgtest_main \
 		-largparse \
 		-lft \
 		-no-pie
-	./tests/test
+	valgrind --leak-check=full --show-leak-kinds=all ./tests/test
 	$(RM) tests/test
 
 re: fclean all

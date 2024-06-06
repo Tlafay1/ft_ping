@@ -108,6 +108,29 @@ void tvsub(struct timeval *out, struct timeval *in)
     out->tv_sec -= in->tv_sec;
 }
 
+void calculate_timeout(struct timeval *timeout, struct timeval *last, struct timeval *interval)
+{
+    struct timeval now;
+
+    gettimeofday(&now, NULL);
+    timeout->tv_sec = last->tv_sec + interval->tv_sec - now.tv_sec;
+    timeout->tv_usec = last->tv_usec + interval->tv_usec - now.tv_usec;
+
+    while (timeout->tv_usec < 0)
+    {
+        timeout->tv_usec += 1000000;
+        timeout->tv_sec--;
+    }
+    while (timeout->tv_usec >= 1000000)
+    {
+        timeout->tv_usec -= 1000000;
+        timeout->tv_sec++;
+    }
+
+    if (timeout->tv_sec < 0)
+        timeout->tv_sec = timeout->tv_usec = 0;
+}
+
 /**
  * Calculates the Internet Checksum (ICMP checksum) for the given data.
  *

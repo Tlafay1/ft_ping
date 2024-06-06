@@ -2,6 +2,8 @@
 
 void create_packet(PING *ping, struct icmphdr *packet, size_t len)
 {
+    memset(packet, 0, len);
+
     packet->type = ICMP_ECHO;
     packet->code = 0;
     packet->un.echo.id = htons(ping->ident);
@@ -26,7 +28,6 @@ void create_packet(PING *ping, struct icmphdr *packet, size_t len)
 int send_packet(PING *ping)
 {
     size_t len;
-    int sent;
 
     len = sizeof(struct icmphdr) + ping->options.size;
 
@@ -34,7 +35,7 @@ int send_packet(PING *ping)
 
     create_packet(ping, (struct icmphdr *)packet, len);
 
-    sent = sendto(ping->fd, packet, len, 0, (struct sockaddr *)&ping->dest, sizeof(ping->dest));
+    int sent = sendto(ping->fd, packet, len, 0, (struct sockaddr *)&ping->dest, sizeof(struct sockaddr_in));
     if (sent < 0)
     {
         perror("sendto");
