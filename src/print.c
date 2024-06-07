@@ -17,12 +17,15 @@ void print_stats(PING *ping)
     printf("%ld packets transmitted, %ld packets received, %d%% packet loss\n",
            ping->num_emit, ping->num_recv,
            packet_loss);
+
+    double avg = ping->stats.sum / ping->num_recv;
+    double vari = ping->stats.sum_square / ping->num_recv - avg * avg;
     if (ping->num_recv > 0 && ping->stats.sum > 0)
         printf("round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n",
                ping->stats.min,
                ping->stats.sum / ping->num_recv,
                ping->stats.max,
-               ping->stats.sum / ping->num_recv);
+               nsqrt(vari, 0.0005));
 }
 
 void print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now)

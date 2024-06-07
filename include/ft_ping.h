@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <signal.h>
+#include <math.h>
 
 #include <sys/time.h>
 
@@ -86,9 +87,10 @@ typedef struct s_ping_options
 
 typedef struct s_ping_stats
 {
-    float min;
-    float max;
-    float sum;
+    double min;
+    double max;
+    double sum;
+    double sum_square;
 } t_ping_stats;
 
 /**
@@ -137,6 +139,7 @@ int recv_packet(PING *ping);
 void create_packet(PING *ping, struct icmphdr *packet, size_t len);
 
 /* utils.c */
+double nsqrt(double a, double prec);
 uint16_t icmp_cksum(uint16_t *icmph, int len);
 void tvsub(struct timeval *out, struct timeval *in);
 int parse_count_arg(t_ping_options *ping_args, t_argr *argr, const char *progname);

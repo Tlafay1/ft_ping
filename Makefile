@@ -37,8 +37,8 @@ $(LIBARGPARSE_NAME)/configure:
 
 $(LIBARGPARSE_NAME):
 	[ -d "./$(LIBARGPARSE_NAME)" ] || \
-		(curl $(LIBARGPARSE_URL) -L -o $(LIBARGPARSE_NAME).tar.gz; \
-		tar -xf $(LIBARGPARSE_NAME).tar.gz; \
+		(curl $(LIBARGPARSE_URL) -L -o $(LIBARGPARSE_NAME).tar.gz && \
+		tar -xf $(LIBARGPARSE_NAME).tar.gz && \
 		$(RM) $(LIBARGPARSE_NAME).tar.gz)
 
 $(NAME): libs $(OBJS)
@@ -47,10 +47,11 @@ $(NAME): libs $(OBJS)
 		-o $(NAME) \
 		-Llibft \
 		-L $(LIBARGPARSE_NAME)/lib \
+		-lm \
 		-lft \
 		-largparse \
 		-Wl,-R./libft
-	# sudo setcap cap_net_raw=ep $(NAME)
+	sudo setcap cap_net_raw=ep $(NAME)
 
 obj/%.o : src/%.c $(INCLUDE)
 	mkdir -p obj
@@ -84,6 +85,7 @@ tests/test: libs $(OBJS)
 		-I./libft \
 		-I./$(LIBARGPARSE_NAME)/include \
 		-pthread \
+		-lm \
 		-lgtest \
 		-lgtest_main \
 		-largparse \
