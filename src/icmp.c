@@ -82,16 +82,9 @@ int recv_packet(PING *ping)
 
     icp = (struct icmphdr *)(packet + hlen);
 
-    printf("Received ICMP packet: type = %d, id = %x, expected id = %x\n", icp->type, ntohs(icp->un.echo.id), ping->ident);
-
     if (icp->type != ICMP_ECHOREPLY)
     {
-        return 0; // Ignore non-reply ICMP packets
-    }
-
-    if (icp->un.echo.id != htons(ping->ident))
-    {
-        return 0; // Ignore ICMP packets with different identifier
+        return 0;
     }
 
     gettimeofday(&now, NULL);
