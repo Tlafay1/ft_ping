@@ -27,6 +27,7 @@
 static t_argo options[] = {
     {'c', "count", "count", "stop after <count> replies", ONE_ARG},
     {'i', "interval", "interval", "wait NUMBER seconds between sending each packet", ONE_ARG},
+    {'n', "numeric", "numeric", "do not resolve host addresses.\n\t\t\t Here for swag purposes", NO_ARG},
     {'q', "quiet", "quiet", "quiet output", NO_ARG},
     {'s', "size", "data size", "use <size> as number of data bytes to be sent", ONE_ARG},
     {'t', "ttl", "time to live", "define time to live", ONE_ARG},
@@ -128,7 +129,8 @@ int ping_init(PING *ping, const char *progname);
 /* print.c */
 void print_stats(PING *ping);
 void print_header(PING *ping);
-void print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now);
+void print_error_dump(struct ip *ip, struct icmphdr *icmp_packet);
+int print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now);
 
 /* stats.c */
 void calculate_stats(t_ping_stats *stats, struct timeval *sent);

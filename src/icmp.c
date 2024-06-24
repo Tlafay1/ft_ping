@@ -82,20 +82,34 @@ int recv_packet(PING *ping)
 
     icp = (struct icmphdr *)(packet + hlen);
 
+    printf("Received ICMP packet: type = %d, id = %x, expected id = %x\n", icp->type, ntohs(icp->un.echo.id), ping->ident);
+
+    if (icp->type != ICMP_ECHOREPLY)
+    {
+        return 0; // Ignore non-reply ICMP packets
+    }
+
+    if (icp->un.echo.id != htons(ping->ident))
+    {
+        return 0; // Ignore ICMP packets with different identifier
+    }
+
     gettimeofday(&now, NULL);
     tp = (struct timeval *)(icp + 1);
     memcpy(&sent, tp, sizeof(sent));
     tvsub(&now, &sent);
 
     if (!ping->options.quiet)
-        print_recv(
-            icp->type,
-            hlen,
-            received - hlen,
-            inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
-            ntohs(icp->un.echo.sequence),
-            ip_packet->ip_ttl,
-            &now);
+        if (print_recv(
+                icp->type,
+                hlen,
+                received - hlen,
+                inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
+                ntohs(icp->un.echo.sequence),
+                ip_packet->ip_ttl,
+                &now) &&
+            ping->options.verbose)
+            print_error_dump((struct ip *)packet, icp);
 
     ping->num_recv++;
 

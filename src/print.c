@@ -28,10 +28,54 @@ void print_stats(PING *ping)
                nsqrt(vari, 0.0005));
 }
 
-void print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now)
+void print_error_dump(struct ip *ip, struct icmphdr *icmp_packet)
+{
+    int hlen = ip->ip_hl << 2;
+    unsigned char *cp = (unsigned char *)ip + hlen;
+
+    printf("IP Hdr Dump:\n");
+    for (u_int64_t i = 0; i < sizeof(*ip); i++)
+    {
+        printf("%02x%s", *((u_char *)ip + i),
+               (i % 2) ? " " : "");
+    }
+    printf("\n");
+    printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst     Data\n");
+    printf(" %1x  %1x %02x %04x %04x",
+           ip->ip_v,
+           ip->ip_hl,
+           ip->ip_tos,
+           ntohs(ip->ip_len),
+           ntohs(ip->ip_id));
+    printf("   %1x %04x",
+           (ntohs(ip->ip_off) & 0xe000) >> 13,
+           ntohs(ip->ip_off) & 0x1fff);
+    printf("  %02x  %02x",
+           ip->ip_ttl,
+           ip->ip_p);
+    printf(" %04x",
+           ntohs(ip->ip_sum));
+    printf(" %s",
+           inet_ntoa(ip->ip_src));
+    printf(" %s",
+           inet_ntoa(ip->ip_dst));
+    printf("\n");
+    if (ip->ip_p == IPPROTO_ICMP)
+    {
+        icmp_packet = (struct icmphdr *)((u_char *)ip + (ip->ip_hl << 2));
+        printf("ICMP: type %u, code %u, size %u, id 0x%x, seq %d\n", *cp, *(cp + 1), ntohs(ip->ip_len) - hlen, ntohs(icmp_packet->un.echo.id), ntohs(icmp_packet->un.echo.sequence));
+        if (*cp == ICMP_ECHOREPLY || *cp == ICMP_ECHO)
+            printf(", id 0x%04x, seq 0x%04x", *(cp + 4) * 256 + *(cp + 5),
+                   *(cp + 6) * 256 + *(cp + 7));
+        printf("\n");
+    }
+}
+
+int print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now)
 {
     char message[40];
     char time[20];
+    int error = 0;
 
     switch (type)
     {
@@ -48,9 +92,11 @@ void print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq,
         break;
     case ICMP_DEST_UNREACH:
         snprintf(message, 30, "Destination Host Unreachable");
+        error = 1;
         break;
     case ICMP_TIME_EXCEEDED:
         snprintf(message, 23, "Time to live exceeded");
+        error = 1;
         break;
     default:
         snprintf(message, 22, "Unknown ICMP type %d", type);
@@ -62,4 +108,5 @@ void print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq,
            message);
 
     printf("\n");
+    return error;
 }
