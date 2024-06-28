@@ -8,7 +8,6 @@ void create_packet(PING *ping, struct icmphdr *packet, size_t len)
     packet->code = 0;
     packet->un.echo.id = htons(ping->ident);
     packet->un.echo.sequence = htons(ping->num_emit);
-    packet->checksum = icmp_cksum((uint16_t *)packet, len);
 
     if (len >= sizeof(struct icmphdr) + sizeof(struct timeval))
     {
@@ -16,6 +15,8 @@ void create_packet(PING *ping, struct icmphdr *packet, size_t len)
         gettimeofday(&now, NULL);
         memcpy((char *)packet + sizeof(struct icmphdr), &now, sizeof(now));
     }
+    
+    packet->checksum = icmp_cksum((uint16_t *)packet, len);
 }
 
 /**
