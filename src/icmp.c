@@ -83,11 +83,6 @@ int recv_packet(PING *ping)
 
     icp = (struct icmphdr *)(packet + hlen);
 
-    if (icp->type != ICMP_ECHOREPLY)
-    {
-        return 0;
-    }
-
     gettimeofday(&now, NULL);
     tp = (struct timeval *)(icp + 1);
     memcpy(&sent, tp, sizeof(sent));
