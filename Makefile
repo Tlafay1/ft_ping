@@ -1,4 +1,4 @@
-CC=clang
+CC=gcc
 
 CFLAGS= -Wall -Wextra -std=gnu99 -g
 
@@ -51,7 +51,8 @@ $(NAME): libs $(OBJS)
 		-lft \
 		-largparse \
 		-Wl,-R./libft
-	sudo setcap cap_net_raw=ep $(NAME)
+	sudo chown root:root $(NAME)
+	sudo chmod u+s $(NAME)
 
 obj/%.o : src/%.c $(INCLUDE)
 	mkdir -p obj

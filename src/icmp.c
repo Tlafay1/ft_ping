@@ -15,7 +15,7 @@ void create_packet(PING *ping, struct icmphdr *packet, size_t len)
         gettimeofday(&now, NULL);
         memcpy((char *)packet + sizeof(struct icmphdr), &now, sizeof(now));
     }
-    
+
     packet->checksum = icmp_cksum((uint16_t *)packet, len);
 }
 
@@ -66,6 +66,7 @@ int recv_packet(PING *ping)
     uint hlen;
     struct timeval now, sent, *tp;
     struct icmphdr *icp;
+    bool error = false;
 
     fromlen = sizeof(from);
     received = recvfrom(ping->fd, packet, IP_MAXPACKET, 0, (struct sockaddr *)&from, &fromlen);
@@ -89,20 +90,24 @@ int recv_packet(PING *ping)
     tvsub(&now, &sent);
 
     if (!ping->options.quiet)
-        if (print_recv(
-                icp->type,
-                hlen,
-                received - hlen,
-                inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
-                ntohs(icp->un.echo.sequence),
-                ip_packet->ip_ttl,
-                &now) &&
-            ping->options.verbose)
-            print_error_dump((struct ip *)packet, icp);
+    {
+        error = print_recv(
+            icp->type,
+            hlen,
+            received - hlen,
+            inet_ntoa(*(struct in_addr *)&from.sin_addr.s_addr),
+            ntohs(icp->un.echo.sequence),
+            ip_packet->ip_ttl,
+            &now);
+        if (error && ping->options.verbose)
+            print_error_dump(icp + 1, received - hlen - sizeof(struct icmphdr));
+    }
 
+    if (!error)
+        ping->num_err++;
     ping->num_recv++;
 
-    if (received >= (ssize_t)(hlen + sizeof(struct icmphdr) + sizeof(struct timeval)))
+    if (received >= (ssize_t)(hlen + sizeof(struct icmphdr) + sizeof(struct timeval)) && !error)
         calculate_stats(&ping->stats, &now);
 
     return 0;

@@ -67,6 +67,7 @@ int ping_init(PING *ping, const char *progname)
     ping->num_emit = 0;
     ping->num_recv = 0;
     ping->num_rept = 0;
+    ping->num_err = 0;
     gettimeofday(&ping->start_time, NULL);
 
     ping->stats.sum = -1;

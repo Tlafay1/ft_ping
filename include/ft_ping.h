@@ -113,6 +113,7 @@ struct ping_data
     size_t num_emit;              /* Number of packets transmitted */
     size_t num_recv;              /* Number of packets received */
     size_t num_rept;              /* Number of duplicates received */
+    size_t num_err;               /* Number of errors */
     t_ping_options options;       /* Ping options */
     t_ping_stats stats;           /* Ping statistics */
 };
@@ -129,7 +130,7 @@ int ping_init(PING *ping, const char *progname);
 /* print.c */
 void print_stats(PING *ping);
 void print_header(PING *ping);
-void print_error_dump(struct ip *ip, struct icmphdr *icmp_packet);
+void print_error_dump(struct icmphdr *icmp_packet, ssize_t received);
 int print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, uint ttl, struct timeval *now);
 
 /* stats.c */
