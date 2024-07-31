@@ -1,6 +1,6 @@
-CC=gcc
+CC=clang
 
-CFLAGS= -Wall -Wextra -std=gnu99 -g
+CFLAGS= -Wall -Wextra -Werror -std=gnu99 -g
 
 RM := rm -f
 
