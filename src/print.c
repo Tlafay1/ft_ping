@@ -78,7 +78,7 @@ int print_recv(uint8_t type, uint hlen, ssize_t received, char *from, uint seq, 
         if (received >= (ssize_t)(hlen + sizeof(struct icmphdr) + sizeof(struct timeval)))
             snprintf(time, 20, " time=%.3f ms", ((double)now->tv_sec) * 1000.0 + ((double)now->tv_usec) / 1000.0);
         else
-            snprintf(time, 1, "");
+            snprintf(time, sizeof(time), "%s", "");
         snprintf(message, 40, "icmp_seq=%d ttl=%d%s",
                  seq,
                  ttl,

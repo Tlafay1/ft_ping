@@ -73,6 +73,7 @@ int ping_init(PING *ping, const char *progname)
     ping->stats.sum = -1;
     ping->stats.min = -1;
     ping->stats.max = -1;
+    ping->stats.sum_square = -1;
 
     if (ping->options.ttl > 0)
         if (setsockopt(ping->fd, IPPROTO_IP, IP_TTL,
@@ -183,6 +184,9 @@ int ping_parse_args(PING *ping, const char *argv[])
 
     if (parse_args(&argp, argv, &args))
         return 1;
+    if (parse_ping_options(&ping->options, args, argv[0]) || ping_init(ping, argv[0]))
+        return 1;
+
     t_argr *argr = get_next_arg(args);
 
     if (!argr)
@@ -191,11 +195,7 @@ int ping_parse_args(PING *ping, const char *argv[])
         free_args(args);
         return 1;
     }
-    if (parse_ping_options(&ping->options, args, argv[0]) || ping_init(ping, argv[0]))
-    {
-        free_args(args);
-        return 1;
-    }
+
     if (set_dest(ping, argr->values[0]))
     {
         printf("%s: unknown host\n", argv[0]);

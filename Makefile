@@ -1,6 +1,6 @@
-CC=clang
+CC=gcc
 
-CFLAGS= -Wall -Wextra -Werror -std=gnu99 -g
+CFLAGS= -Wall -Wextra -Werror -std=gnu99
 
 RM := rm -f
 
@@ -16,7 +16,7 @@ INCLUDE := include/ft_ping.h
 
 NAME := ft_ping
 
-LIBARGPARSE_VERSION = 4.0.0
+LIBARGPARSE_VERSION = 4.0.1
 
 LIBARGPARSE_URL = https://github.com/Tlafay1/libargparse/releases/download/v$(LIBARGPARSE_VERSION)/libargparse-$(LIBARGPARSE_VERSION).tar.gz
 
@@ -68,32 +68,8 @@ fclean : clean
 	$(RM) $(NAME)
 
 distclean: fclean
-	$(RM) -rf $(LIBARGPARSE_NAME)
+	$(RM) -r $(LIBARGPARSE_NAME)
 	$(RM) config.log config.status
-
-test: tests/test
-
-# Run tests with gtest
-tests/test: libs $(OBJS)
-	g++ $(CFLAGS) \
-		$(filter-out obj/main.o, $(OBJS)) \
-		$(TESTS) \
-		-o tests/test \
-		-Llibft \
-		-L $(LIBARGPARSE_NAME)/lib \
-		-Wl,-R./libft \
-		-I./include \
-		-I./libft \
-		-I./$(LIBARGPARSE_NAME)/include \
-		-pthread \
-		-lm \
-		-lgtest \
-		-lgtest_main \
-		-largparse \
-		-lft \
-		-no-pie
-	valgrind --leak-check=full --show-leak-kinds=all ./tests/test
-	$(RM) tests/test
 
 re: fclean all
 

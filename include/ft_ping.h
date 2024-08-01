@@ -26,7 +26,7 @@
 
 static t_argo options[] = {
     {'c', "count", "count", "stop after <count> replies", ONE_ARG},
-    {'i', "interval", "interval", "wait NUMBER seconds between sending each packet", ONE_ARG},
+    {'i', "interval", "interval", "wait <number> seconds between sending each packet", ONE_ARG},
     {'n', "numeric", "numeric", "do not resolve host addresses.\n\t\t\t Here for swag purposes", NO_ARG},
     {'q', "quiet", "quiet", "quiet output", NO_ARG},
     {'s', "size", "data size", "use <size> as number of data bytes to be sent", ONE_ARG},
@@ -35,7 +35,7 @@ static t_argo options[] = {
     {'?', "help", "help", "print help and exit", NO_ARG},
     {0, NULL, NULL, NULL, NO_ARG}};
 
-static t_argp argp = {
+static t_argp argp __attribute__((unused)) = {
     .options = options,
     .args_doc = "[options] <destination>",
     .doc = ""};
