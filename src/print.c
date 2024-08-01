@@ -2,7 +2,7 @@
 
 void print_header(PING *ping)
 {
-    printf("PING %s (%s): %ld bytes of data",
+    printf("PING %s (%s): %ld data bytes",
            ping->hostname, inet_ntoa(ping->dest.sin_addr), ping->datalen);
 
     if (ping->options.verbose)
@@ -12,10 +12,11 @@ void print_header(PING *ping)
 
 void print_stats(PING *ping)
 {
-    int packet_loss = 0;
+    ping->num_recv -= ping->num_err;
+    int packet_loss = 100;
     if (ping->num_recv > 0)
     {
-        packet_loss = (int)(100.0 - (float)(ping->num_err) / (float)(ping->num_recv) * 100.0);
+        packet_loss = (int)(100.0 - (float)(ping->num_emit) / (float)(ping->num_recv) * 100.0);
     }
     printf("--- %s ping statistics ---\n", ping->hostname);
     printf("%ld packets transmitted, %ld packets received, %d%% packet loss\n",
@@ -44,7 +45,7 @@ void print_error_dump(struct icmphdr *icmp_packet, ssize_t received)
         printf(" %02x%02x", *((u_char *)ip_packet + i), *((u_char *)ip_packet + i + 1));
     }
     printf("\n");
-    printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst     Data\n");
+    printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src    Dst     Data\n");
     printf(" %1x  %1x  %02x %04x %04x",
            ip_packet->ip_v,
            ip_packet->ip_hl,

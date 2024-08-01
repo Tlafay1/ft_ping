@@ -84,7 +84,7 @@ int recv_packet(PING *ping)
 
     icp = (struct icmphdr *)(packet + hlen);
 
-    if (icp->type != ICMP_ECHOREPLY)
+    if (icp->type != ICMP_ECHOREPLY && icp->type != ICMP_DEST_UNREACH && icp->type != ICMP_TIME_EXCEEDED)
         return -1;
 
     gettimeofday(&now, NULL);
@@ -106,7 +106,7 @@ int recv_packet(PING *ping)
             print_error_dump(icp + 1, received - hlen - sizeof(struct icmphdr));
     }
 
-    if (!error)
+    if (error)
         ping->num_err++;
     ping->num_recv++;
 
