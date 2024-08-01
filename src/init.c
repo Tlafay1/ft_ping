@@ -188,11 +188,20 @@ int ping_parse_args(PING *ping, const char *argv[])
     if (!argr)
     {
         printf("%s: destination argument required\n", argv[0]);
+        free_args(args);
         return 1;
     }
     if (parse_ping_options(&ping->options, args, argv[0]) || ping_init(ping, argv[0]))
+    {
+        free_args(args);
         return 1;
-    set_dest(ping, argr->values[0]);
+    }
+    if (set_dest(ping, argr->values[0]))
+    {
+        printf("%s: unknown host\n", argv[0]);
+        free_args(args);
+        return 1;
+    }
     free_args(args);
     return 0;
 }

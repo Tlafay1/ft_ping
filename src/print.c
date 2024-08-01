@@ -12,7 +12,11 @@ void print_header(PING *ping)
 
 void print_stats(PING *ping)
 {
-    int packet_loss = (int)(100.0 - (float)(ping->num_err) / (float)(ping->num_recv) * 100.0);
+    int packet_loss = 0;
+    if (ping->num_recv > 0)
+    {
+        packet_loss = (int)(100.0 - (float)(ping->num_err) / (float)(ping->num_recv) * 100.0);
+    }
     printf("--- %s ping statistics ---\n", ping->hostname);
     printf("%ld packets transmitted, %ld packets received, %d%% packet loss\n",
            ping->num_emit, ping->num_recv,

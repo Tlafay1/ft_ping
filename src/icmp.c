@@ -36,7 +36,7 @@ int send_packet(PING *ping)
 
     create_packet(ping, (struct icmphdr *)packet, len);
 
-    int sent = sendto(ping->fd, packet, len, 0, (struct sockaddr *)&ping->dest, sizeof(struct sockaddr_in));
+    int sent = sendto(ping->fd, packet, len, 0, (struct sockaddr *)&ping->dest, sizeof(struct sockaddr));
     if (sent < 0)
     {
         perror("sendto");
@@ -83,6 +83,9 @@ int recv_packet(PING *ping)
         return -1;
 
     icp = (struct icmphdr *)(packet + hlen);
+
+    if (icp->type != ICMP_ECHOREPLY)
+        return -1;
 
     gettimeofday(&now, NULL);
     tp = (struct timeval *)(icp + 1);
