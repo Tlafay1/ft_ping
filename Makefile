@@ -33,7 +33,7 @@ libargparse: $(LIBARGPARSE_NAME) $(LIBARGPARSE_NAME)/configure
 	$(MAKE) -C ./$(LIBARGPARSE_NAME)
 
 $(LIBARGPARSE_NAME)/configure:
-	cd $(LIBARGPARSE_NAME) && ./configure
+	cd $(LIBARGPARSE_NAME) && VERSION=$(LIBARGPARSE_VERSION) ./configure
 
 $(LIBARGPARSE_NAME):
 	[ -d "./$(LIBARGPARSE_NAME)" ] || \
